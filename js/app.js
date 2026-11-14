@@ -361,7 +361,7 @@ const meP=api.me().catch(()=>({status:"none"}));
 function go(n){if(n===cur)return;const nx=$('.view[data-view="'+n+'"]'),pv=$('.view[data-view="'+cur+'"]');
  pv.classList.add("out");pv.classList.remove("on");setTimeout(()=>pv.classList.remove("out"),520);
  nx.classList.add("on");nx.scrollTop=0;cur=n;document.body.dataset.view=n;if(n!=="intro"&&V.pyramid&&V.pyramid.stop)V.pyramid.stop();V.tg.haptic("light");V.card&&(V.card.view(n==="done"),(n==="letter"||n==="form")&&V.card.warm());
- document.querySelectorAll("#cats button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.go===n)));document.body.classList.remove("menu-open");if(n==="merits")loadMerits();if(n==="web")webLoad();if(n==="genesis")glStart();else glStop();if(V.spore){if(n==="spore")V.spore.enter();else V.spore.stop()}try{const bb=V.tg.app&&V.tg.app.BackButton;if(bb)n==="founders"||n==="lock"?bb.show():bb.hide()}catch(e){}}
+ document.querySelectorAll("#cats button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.go===n)));document.body.classList.remove("menu-open");if(n==="merits")loadMerits();if(n==="web")webLoad();if(n==="genesis")glStart();else glStop();if(V.spore){if(n==="spore")V.spore.enter();else V.spore.stop()}try{V.tools&&V.tools.onView(n)}catch(e){}try{const bb=V.tg.app&&V.tg.app.BackButton;if(bb)n==="founders"||n==="lock"?bb.show():bb.hide()}catch(e){}}
 let MEM=null,justDec=false;
 const MASK="VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022";
 /* new members see the code only after one node sync; everyone else sees it right away */
