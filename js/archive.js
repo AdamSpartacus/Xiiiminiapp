@@ -138,13 +138,24 @@ function addFiles(list){
 function fail(it,msg){
  it.state="err";it.ti.disabled=false;it.x.hidden=false;it.set("bad",msg);it.bar(0);
  if(it.id){const id=it.id;it.id="";try{api.arc_delete({id}).catch(()=>{})}catch(e){}}}
+/* when the browser blocks the PUT it gives no reason: work out which of the usual causes it is and say so */
+let cspHit="";document.addEventListener("securitypolicyviolation",e=>{if(/r2\.cloudflarestorage/.test(e.blockedURI||""))cspHit=e.violatedDirective||"csp"});
+async function why(url){
+ if(cspHit)return"The app's security policy blocked storage ("+cspHit+"). The live index.html is missing the R2 address in its CSP: upload the latest index.html.";
+ let u=null;try{u=new URL(url)}catch(e){}
+ if(!u)return"The upload address is malformed. Check the R2_ACCOUNT_ID secret.";
+ const m=/^([^.]+)\.r2\.cloudflarestorage\.com$/.exec(u.host),bucket=decodeURIComponent(u.pathname.split("/")[1]||"");
+ if(!m||!/^[0-9a-f]{32}$/.test(m[1]))return"The storage address looks wrong ("+u.host.slice(0,10)+"\u2026). R2_ACCOUNT_ID must be the 32-character Cloudflare account ID.";
+ let reach=false;try{await fetch("https://"+u.host+"/",{mode:"no-cors",cache:"no-store"});reach=true}catch(e){}
+ if(!reach)return"Storage ("+m[1].slice(0,6)+"\u2026) could not be reached. Check the connection, then R2_ACCOUNT_ID.";
+ return"Storage was reached but refused the browser request (CORS). The bucket in use is \""+bucket+"\": its CORS policy must allow PUT, GET and HEAD from this app, and R2_BUCKET must name that bucket."}
 /* raw PUT of the selected file to R2: the bytes are sent exactly as they are on the device, so EXIF / ID3 / XMP and every other tag survive */
 function putFile(url,f,mime,prog){
  return new Promise(res=>{
   const x=new XMLHttpRequest();x.open("PUT",url);if(mime)x.setRequestHeader("Content-Type",mime);
   x.upload.onprogress=e=>{if(e.lengthComputable)prog(e.loaded*100/e.total)};
   x.onload=()=>res(x.status>=200&&x.status<300?{ok:1}:{ok:0,msg:"Storage refused the upload ("+x.status+")."});
-  x.onerror=()=>res({ok:0,msg:"Upload blocked. Check your connection. If it keeps failing, the R2 bucket's CORS rule must allow PUT from this app's address."});
+  x.onerror=async()=>res({ok:0,msg:"Upload blocked. "+await why(url)});
   x.send(f)})}
 async function one(it){
  const title=it.ti.value.trim();
