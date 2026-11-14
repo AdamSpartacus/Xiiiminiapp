@@ -127,7 +127,7 @@ try{if(remeasure||frame%8===0){measure();remeasure=false}}catch(_){boxT=boxT||{x
 const k=1-Math.exp(-dt*9);['x0','x1','t','b'].forEach(n=>{box[n]+=(boxT[n]-box[n])*k});
 const bob=Math.sin(now/1000*.9)*.22;rig.position.y=bob;rig.scale.setScalar(1);
 const th2=Math.tan(THREE.MathUtils.degToRad(cam.fov/2)),bw=box.x1-box.x0,bh=box.b-box.t,e=ez(u);
-const halfH=(5+(4.1-5)*e)*1.1+.3,halfW=1.9+(4.9-1.9)*e;   /* world half-extents incl. perspective + bob margin */
+const fit=1.08+.22*e,halfH=((5+(4.1-5)*e)*1.1+.3)*fit,halfW=(1.9+(4.9-1.9)*e)*fit;   /* fit: extra breathing room so the pyramid never clips at the corners */   /* world half-extents incl. perspective + bob margin */
 const d=Math.min(Math.max(halfH*H/(bh*th2),halfW*H/(bw*th2)),550);
 cam.position.set(0,d*.02,d);cam.lookAt(0,0,0);
 if(isFinite(d)&&d>0)cam.setViewOffset(W,H,W/2-(box.x0+box.x1)/2,H/2-(box.t+box.b)/2,W,H);else{cam.clearViewOffset();cam.position.set(0,0,30)}
