@@ -139,9 +139,21 @@ function fail(it,msg){
  it.state="err";it.ti.disabled=false;it.x.hidden=false;it.set("bad",msg);it.bar(0);
  if(it.id){const id=it.id;it.id="";try{api.arc_delete({id}).catch(()=>{})}catch(e){}}}
 /* when the browser blocks the PUT it gives no reason: work out which of the usual causes it is and say so */
-let cspHit="";document.addEventListener("securitypolicyviolation",e=>{if(/r2\.cloudflarestorage/.test(e.blockedURI||""))cspHit=e.violatedDirective||"csp"});
+let cspHit="",cspUri="";document.addEventListener("securitypolicyviolation",e=>{if(/r2\.cloudflarestorage/.test(e.blockedURI||"")){cspHit=e.violatedDirective||"csp";cspUri=String(e.blockedURI||"").split("?")[0]}});
+/* Telegram can keep an old copy of index.html (where the CSP lives) while the scripts are fresh. If this page's CSP does not name R2, refresh the cached page once and reload it. */
+const pageCsp=()=>{const m=document.querySelector('meta[http-equiv="Content-Security-Policy"]');return m?m.getAttribute("content")||"":""};
+const cspStale=()=>!/r2\.cloudflarestorage\.com/.test(pageCsp());
+function healPage(){
+ let tried="";try{tried=sessionStorage.getItem("arcHeal")||""}catch(e){}
+ if(tried)return false;
+ try{sessionStorage.setItem("arcHeal","1")}catch(e){}
+ fetch(location.pathname,{cache:"reload",credentials:"same-origin"}).catch(()=>{}).then(()=>location.reload());
+ return true}
+if(cspStale())healPage();
 async function why(url){
- if(cspHit)return"The app's security policy blocked storage ("+cspHit+"). The live index.html is missing the R2 address in its CSP: upload the latest index.html.";
+ if(cspHit){
+  if(cspStale())return"This screen is running an out-of-date copy of the page. Close the app completely, clear Telegram's cache (Settings > Data and Storage > Storage Usage), and open it again.";
+  return"The app's security policy blocked storage ("+cspHit+") at "+cspUri.slice(0,60)+". The CSP allows *.r2.cloudflarestorage.com, so this address is different: check the R2_ACCOUNT_ID secret."}
  let u=null;try{u=new URL(url)}catch(e){}
  if(!u)return"The upload address is malformed. Check the R2_ACCOUNT_ID secret.";
  const m=/^([^.]+)\.r2\.cloudflarestorage\.com$/.exec(u.host),bucket=decodeURIComponent(u.pathname.split("/")[1]||"");
