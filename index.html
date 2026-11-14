@@ -377,6 +377,12 @@ html[data-perf=low] .view,html[data-perf=low] .view.out{filter:none}
 <style>/* Tools hub, sidebar tool list and Meta Index. Same glass / silver theme as the rest of the portal; every class is prefixed mi- so nothing else is touched. */
 body[data-view=meta] #cats button[data-go]{display:flex!important}
 body.ready[data-view=meta] #menubtn{display:flex}
+body.ready.owner[data-view=veil] #menubtn{display:flex}
+.view[data-view=veil] .sheet{height:calc(100% - var(--sat) - 60px);max-height:none}
+@media (min-width:700px){.view[data-view=veil] .sheet{height:calc(100% - 24px)}}
+.view[data-view=veil] [hidden]{display:none!important}
+.vc-meta{font:13px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word}
+.view[data-view=veil] .fld{margin-top:14px}
 .view[data-view=meta] .sheet{height:calc(100% - var(--sat) - 60px);max-height:none}
 @media (min-width:700px){.view[data-view=meta] .sheet{height:calc(100% - 24px)}}
 .view[data-view=meta] [hidden]{display:none!important}
@@ -458,6 +464,7 @@ html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:
 <script defer src="js/app.js"></script>
 <script defer src="js/tools.js"></script>
 <script defer src="js/meta.js"></script>
+<script defer src="js/veil.js"></script>
 <script>window.__MODEL__={json:"assets/model.e0f63614.json",bin:"assets/pyramid.0334b620.bin"}</script>
 <script defer src="js/loader.js"></script>
 </head>
@@ -723,6 +730,30 @@ html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:
     </div>
   </div></section>
 
+  <section class="view" data-view="veil"><div class="glass sheet" id="vcSheet">
+    <div class="fhead"><div class="frow"><button class="fback" type="button" id="vcBack" data-go="done" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Back</span></button><h2>Veil Creator</h2></div></div>
+    <div class="mi-gate" id="vcGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
+    <div id="vcApp" hidden>
+      <p class="eyebrow" style="margin-top:18px">Founder tool</p>
+      <p class="gl-p mi-lead">Strip a photo&rsquo;s metadata, then hide a private message inside it. Only the Meta Index can open it. Everything runs on your device.</p>
+      <div class="mi-drop" id="vcDrop" role="button" tabindex="0"><i>+</i><b>Choose a photo</b><span>tap to select or drop one here</span></div>
+      <input type="file" id="vcFile" accept="image/*" hidden>
+      <div id="vcWork" hidden style="margin-top:14px"><div class="mi-frame"><img id="vcPrev" alt="Preview"></div><div class="mi-note vc-meta" id="vcBefore" style="margin-top:10px"></div></div>
+      <div id="vcOpts" hidden>
+        <label class="fld">Secret message<textarea id="vcTxt" maxlength="2000" placeholder="The private text members will read" autocomplete="off"></textarea></label>
+        <label class="fld">Passphrase (optional, locks the message)<input id="vcPw" type="password" autocomplete="off" placeholder="Leave empty for no lock"></label>
+        <label class="fld">Make SHA-256 start with (optional, hex, max 5)<input id="vcPre" maxlength="5" placeholder="e.g. cafe" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+        <label class="fld">Output format<select id="vcFmt"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select></label>
+        <button class="btn solid" id="vcGo" type="button">Clean &amp; create veil</button>
+      </div>
+      <div id="vcOut" hidden style="margin-top:14px">
+        <div class="mi-note vc-meta" id="vcAfter"></div>
+        <button class="btn solid" id="vcDl" type="button">Save / share file</button>
+        <p class="note">Post it in the channel as a <b>file</b>, not a photo. Telegram and other apps re-compress photos and delete the veil.</p>
+      </div>
+    </div>
+  </div></section>
+
   <section class="view" data-view="founders"><div class="glass sheet">
     <div class="fhead">
       <div class="frow"><button class="fback" id="fback" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Back</span></button><h2>Founders</h2><span class="fcount" id="fc"></span></div>
@@ -752,9 +783,9 @@ html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:
 <div class="mi-toast" id="miToast" role="status" aria-live="polite"></div>
 <button id="lbtn" type="button" aria-label="Portal lock" title="Portal lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></button>
 <button id="fbtn" type="button" aria-label="Founders" title="Founders"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6 6.1 20.8l1.2-6.6L2.4 9.6l6.7-.9z"/></svg></button>
-<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button></div>
+<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button></div>
 <button id="menubtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="cats"><svg class="bars" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-<div id="menuscrim"></div>
+<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button>
 
 <div id="plock" role="alertdialog" aria-modal="true" aria-labelledby="plh" aria-describedby="plm"><div class="glass pl-card"><div class="pl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div><div class="eyebrow">Warning from the System</div><h2 id="plh">Portal Locked</h2><p class="pl-msg" id="plm"></p><div class="pl-t" id="plc"></div></div></div>
 
