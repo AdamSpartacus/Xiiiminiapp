@@ -17,7 +17,7 @@ function render(){
  if(side)side.innerHTML=groups().map(([c,l])=>'<span class="mcat">'+esc(c)+'</span>'+l.map(t=>'<button type="button" data-go="'+esc(t.view)+'" aria-pressed="'+(document.body.dataset.view===t.view)+'">'+(t.icon||"")+'<span>'+esc(t.name)+'</span></button>').join("")).join("")}
 V.tools={list:T,hooks,add(t){T.push(t);render()},
  onView(n){if(prev&&prev!==n&&hooks[prev]&&hooks[prev].leave){try{hooks[prev].leave()}catch(e){console.error(e)}}
-  prev=n;if(hooks[n]&&hooks[n].enter){try{hooks[n].enter()}catch(e){console.error(e)}}}};
+  const was=prev;prev=n;if(hooks[n]&&hooks[n].enter){try{hooks[n].enter(was)}catch(e){console.error(e)}}}};
 render();
 })(window.ILLUMINATI);
 }catch(e){console.error(e)}
