@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#000000"><meta name="color-scheme" content="dark"><meta name="format-detection" content="telephone=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://telegram.org https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://agzhxwditnlzdcuqjjfz.supabase.co https://ipapi.co https://api.ipify.org; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://telegram.org https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.r2.cloudflarestorage.com; connect-src 'self' https://agzhxwditnlzdcuqjjfz.supabase.co https://ipapi.co https://api.ipify.org https://*.r2.cloudflarestorage.com; media-src 'self' blob: https://*.r2.cloudflarestorage.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ILLUMINATI Member Portal</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNMTQgMTZoMTBsOCAyNiA4LTI2aDEwTDM2IDUwaC04eiIgZmlsbD0iI2RmZTNlYSIvPjwvc3ZnPgo=" type="image/svg+xml">
@@ -457,6 +457,48 @@ dl.mi-r dt{font-size:12px;color:var(--dim)}dl.mi-r dd{margin:0;color:var(--text)
 html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:none}
 </style>
 <link rel="preload" href="assets/model.e0f63614.json" as="fetch" crossorigin><link rel="preload" href="assets/pyramid.0334b620.bin" as="fetch" crossorigin>
+<style>/* Corrupted Archive + Archive Upload. Every class is prefixed ar- / au so nothing else is touched. */
+body[data-view=archive] #cats button[data-go],body[data-view=arcup] #cats button[data-go]{display:flex!important}
+body[data-view=archive] #cats .msub,body[data-view=arcup] #cats .msub{display:flex}
+body.ready[data-view=archive] #menubtn,body.ready.owner[data-view=arcup] #menubtn{display:flex}
+.view[data-view=archive] .sheet,.view[data-view=arcup] .sheet{height:calc(100% - var(--sat) - 60px);max-height:none}
+@media (min-width:700px){.view[data-view=archive] .sheet,.view[data-view=arcup] .sheet{height:calc(100% - 24px)}}
+.view[data-view=archive] [hidden],.view[data-view=arcup] [hidden]{display:none!important}
+.ar-lead{margin:6px 0 4px}
+.ar-tabs{display:flex;gap:6px;margin:14px 0 2px;overflow-x:auto;scrollbar-width:none}.ar-tabs::-webkit-scrollbar{display:none}
+.ar-tabs button{flex:none;font:600 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:99px;padding:10px 14px;cursor:pointer}
+.ar-tabs button[aria-pressed=true]{background:linear-gradient(#fff,#b9bfca);color:#000;border-color:transparent}
+.ar-item{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.35);overflow:hidden}
+.ar-thumb{display:block;width:100%;max-height:280px;object-fit:cover;background:#050506;cursor:zoom-in}
+.ar-body{padding:12px 14px 14px}
+.ar-body b{display:block;font-weight:600;font-size:14px;word-break:break-word}
+.ar-body small{display:block;margin-top:2px;color:var(--dim);font-size:12px}
+.ar-body small.ar-lock{margin-top:10px}
+.ar-body audio{display:block;width:100%;margin-top:10px}
+.ar-tag{display:inline-block;margin-left:8px;padding:2px 8px;border:1px solid var(--line);border-radius:99px;font:600 9.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);vertical-align:2px}
+.ar-act{display:flex;gap:8px;margin-top:12px}
+.ar-act .btn{margin:0;padding:12px 14px;font-size:11px;flex:1;width:auto}
+.ar-vid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;aspect-ratio:16/9;background:#050506;cursor:pointer;-webkit-user-select:none;user-select:none}
+.ar-play{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--accent)}
+.ar-play svg{width:24px;height:24px}
+.ar-vl{font-size:12px;color:var(--dim)}
+video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#arLb{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:calc(var(--sat) + 16px) 16px calc(var(--sab) + 16px);background:rgba(0,0,0,.92)}
+#arLb.on{display:flex}
+#arLb img{max-width:100%;max-height:74vh;object-fit:contain;border-radius:12px}
+#arLb .ar-act{width:min(420px,100%)}
+.ar-q{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(0,0,0,.35)}
+.ar-row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.ar-nm{min-width:0}.ar-nm b{display:block;font-weight:600;font-size:13.5px;word-break:break-word}.ar-nm small{color:var(--dim);font-size:12px}
+.ar-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:none;color:var(--text);font:400 20px/1 var(--sans);cursor:pointer}
+.ar-ti{display:block;width:100%;min-height:44px;margin-top:10px;font:16px var(--sans);color:var(--text);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:10px 12px;-webkit-appearance:none;appearance:none}
+.ar-ti:focus{outline:2px solid var(--accent);outline-offset:1px}
+.ar-bar{height:4px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:12px}
+.ar-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8fa0c4,#fff);transition:width .15s}
+.ar-st{min-height:1em;margin-top:6px;font-size:12px;color:var(--dim)}.ar-st.ok{color:#8fe3a8}.ar-st.bad{color:#ff9a9a}
+#auList .nsitem{align-items:center}
+@media (prefers-reduced-motion:reduce){.ar-bar i{transition:none}}
+</style>
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
@@ -465,6 +507,7 @@ html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:
 <script defer src="js/tools.js"></script>
 <script defer src="js/meta.js"></script>
 <script defer src="js/veil.js"></script>
+<script defer src="js/archive.js"></script>
 <script>window.__MODEL__={json:"assets/model.e0f63614.json",bin:"assets/pyramid.0334b620.bin"}</script>
 <script defer src="js/loader.js"></script>
 </head>
@@ -779,13 +822,37 @@ html[data-perf=low] .mi-chips span{-webkit-backdrop-filter:none;backdrop-filter:
     <button class="btn solid" id="lgo" type="button">Lock portal</button>
     <p class="note" id="lnote" role="status"></p>
   </div></section>
+
+  <section class="view" data-view="archive"><div class="glass sheet" id="arSheet">
+    <p class="sh">Corrupted Archive</p>
+    <p class="gl-p ar-lead">Recovered files from the network. Images and audio can be saved as often as you like, with their original metadata intact. Video is stream-only.</p>
+    <div class="ar-tabs" id="arTabs" role="group" aria-label="Filter the archive"><button type="button" data-f="all" aria-pressed="true">All</button><button type="button" data-f="image" aria-pressed="false">Images</button><button type="button" data-f="audio" aria-pressed="false">Audio</button><button type="button" data-f="video" aria-pressed="false">Video</button></div>
+    <div id="arList" aria-live="polite"></div>
+    <p class="note" id="arNote" role="status"></p>
+  </div></section>
+
+  <section class="view" data-view="arcup"><div class="glass sheet" id="auSheet">
+    <div class="fhead"><div class="frow"><button class="fback" type="button" data-go="archive" aria-label="Back to the archive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Archive</span></button><h2>Archive Upload</h2></div></div>
+    <div class="mi-gate" id="auGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
+    <div id="auApp" hidden>
+      <p class="eyebrow" style="margin-top:18px">Founder</p>
+      <p class="gl-p mi-lead">Add images, audio and video to the Corrupted Archive. Every file is stored exactly as you select it, with all of its metadata untouched. Members can save images and audio; video can only be streamed.</p>
+      <label class="mi-drop" id="auDrop" tabindex="0"><input id="auFile" type="file" accept="image/*,audio/*,video/*,.heic,.heif,.avif,.tif,.tiff,.flac,.m4a,.opus,.mov,.m4v,.mp4,.webm" multiple hidden><i>+</i><b>Select files</b><span>images, audio or video &middot; or drop them here</span></label>
+      <div id="auQ"></div>
+      <button class="btn solid" id="auGo" type="button" hidden>Upload</button>
+      <p class="note" id="auNote" role="status"></p>
+      <p class="eyebrow" style="margin-top:22px">In the archive <span id="auCount"></span></p>
+      <div id="auList"></div>
+    </div>
+  </div></section>
 </main>
 <div class="mi-toast" id="miToast" role="status" aria-live="polite"></div>
+<div id="arLb" role="dialog" aria-modal="true" aria-label="Image viewer"><img id="arLbI" alt=""><div class="ar-act"><button class="btn" id="arLbX" type="button">Close</button><button class="btn solid" id="arLbS" type="button">Save original</button></div></div>
 <button id="lbtn" type="button" aria-label="Portal lock" title="Portal lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></button>
 <button id="fbtn" type="button" aria-label="Founders" title="Founders"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6 6.1 20.8l1.2-6.6L2.4 9.6l6.7-.9z"/></svg></button>
-<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button></div>
+<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="archive" aria-pressed="false">Corrupted Archive</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button><button class="mbtn own" id="marcup" type="button">Archive Upload</button></div>
 <button id="menubtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="cats"><svg class="bars" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="arcGoUp" data-go="arcup" type="button" hidden aria-hidden="true" tabindex="-1"></button>
 
 <div id="plock" role="alertdialog" aria-modal="true" aria-labelledby="plh" aria-describedby="plm"><div class="glass pl-card"><div class="pl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div><div class="eyebrow">Warning from the System</div><h2 id="plh">Portal Locked</h2><p class="pl-msg" id="plm"></p><div class="pl-t" id="plc"></div></div></div>
 
