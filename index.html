@@ -786,6 +786,8 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
         <label class="fld">Secret message<textarea id="vcTxt" maxlength="2000" placeholder="The private text members will read" autocomplete="off"></textarea></label>
         <label class="fld">Passphrase (optional, locks the message)<input id="vcPw" type="password" autocomplete="off" placeholder="Leave empty for no lock"></label>
         <label class="fld">Make SHA-256 start with (optional, hex, max 5)<input id="vcPre" maxlength="5" placeholder="e.g. cafe" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+        <label class="nschk"><input type="checkbox" id="vcDtOn"> Set date and time in the metadata</label>
+        <label class="fld" id="vcDtW" hidden>Date and time<input id="vcDt" type="datetime-local" step="1" autocomplete="off"></label>
         <label class="fld">Output format<select id="vcFmt"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select></label>
         <button class="btn solid" id="vcGo" type="button">Clean &amp; create veil</button>
       </div>
