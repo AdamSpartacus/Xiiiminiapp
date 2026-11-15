@@ -6,7 +6,7 @@ try{
 (function(V){
 const $=id=>document.getElementById(id),api=V.services.api;
 const MB=1048576,LIM={image:50*MB,audio:200*MB,video:500*MB};
-const EXT={jpg:"image",jpeg:"image",png:"image",webp:"image",gif:"image",heic:"image",heif:"image",tif:"image",tiff:"image",avif:"image",bmp:"image",mp3:"audio",m4a:"audio",m4b:"audio",aac:"audio",wav:"audio",wave:"audio",bwf:"audio",ogg:"audio",oga:"audio",opus:"audio",flac:"audio",weba:"audio",wma:"audio",aif:"audio",aiff:"audio",aifc:"audio",amr:"audio",awb:"audio",caf:"audio",mka:"audio",mp2:"audio",mpga:"audio",ac3:"audio",eac3:"audio",dts:"audio",mid:"audio",midi:"audio",ape:"audio",wv:"audio",3ga:"audio",mp4:"video",m4v:"video",webm:"video",mov:"video"};
+const EXT={jpg:"image",jpeg:"image",png:"image",webp:"image",gif:"image",heic:"image",heif:"image",tif:"image",tiff:"image",avif:"image",bmp:"image",mp3:"audio",m4a:"audio",m4b:"audio",aac:"audio",wav:"audio",wave:"audio",bwf:"audio",ogg:"audio",oga:"audio",opus:"audio",flac:"audio",weba:"audio",wma:"audio",aif:"audio",aiff:"audio",aifc:"audio",amr:"audio",awb:"audio",caf:"audio",mka:"audio",mp2:"audio",mpga:"audio",ac3:"audio",eac3:"audio",dts:"audio",mid:"audio",midi:"audio",ape:"audio",wv:"audio","3ga":"audio",mp4:"video",m4v:"video",webm:"video",mov:"video"};
 const kindOf=f=>{const t=(f.type||"").toLowerCase(),e=EXT[(f.name.split(".").pop()||"").toLowerCase()];return/^image\//.test(t)?"image":/^audio\//.test(t)?"audio":/^video\//.test(t)?"video":e||""};
 const h=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
 const fmtSize=n=>n>=MB*1024?(n/MB/1024).toFixed(1)+" GB":n>=MB?(n/MB).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
@@ -104,6 +104,8 @@ async function enter(){
  const r=await verify();gating=false;
  if(r.ok){OK=true;okAt=Date.now();$("auGate").hidden=true;$("auGate").innerHTML="";$("auApp").hidden=false;loadList()}
  else if(r.k==="net")deny("We could not verify your access. Check your connection and try again.",true);
+ else if(r.k==="no"&&r.msg&&r.msg!=="Founder only.")deny(String(r.msg).replace(/[<>&]/g,"")+(/Open this from Telegram/i.test(r.msg)?" Close the app completely and reopen it from Telegram.":""),true);
+ else if(r.k==="no"&&!document.body.classList.contains("owner"))deny("This account was not recognised as the founder. Close the app completely, reopen it from Telegram and try again.",true);
  else deny("This section is only available to the founder.")}
 function leave(){OK=false;okAt=0;$("auGate").hidden=false;$("auApp").hidden=true}
 
