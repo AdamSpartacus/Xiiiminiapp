@@ -764,9 +764,9 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
       <section id="miHome">
         <p class="eyebrow">Image intelligence</p>
         <p class="gl-p mi-lead">Upload any image or video to uncover every hidden detail: camera, lens, time, location, software and more.</p>
-        <label class="mi-drop" id="miDrop"><input id="miFile" type="file" accept="image/*,video/*,.heic,.heif,.avif,.tiff,.tif,.mov,.mp4,.m4v,.webm" hidden><i>+</i><b>Select an image or video</b><span>or drop / paste it here</span></label>
+        <label class="mi-drop" id="miDrop"><input id="miFile" type="file" accept="image/*,audio/*,video/*,.heic,.heif,.avif,.tiff,.tif,.mov,.mp4,.m4v,.webm,.mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,.weba" hidden><i>+</i><b>Select an image, audio or video</b><span>or drop / paste it here</span></label>
         <p class="note">Your file is analysed on your device and never uploaded.</p>
-        <label class="btn mi-alt"><input id="miFile2" type="file" accept="image/*,video/*,.heic,.heif,.avif,.mov,.mp4,.m4v,.webm" multiple hidden>Remove metadata only</label>
+        <label class="btn mi-alt"><input id="miFile2" type="file" accept="image/*,audio/*,video/*,.heic,.heif,.avif,.mov,.mp4,.m4v,.webm,.mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,.weba" multiple hidden>Remove metadata only</label>
         <p class="note" id="miIp"></p>
       </section>
       <section id="miOut" hidden></section>
@@ -778,23 +778,26 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
     <div class="mi-gate" id="vcGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
     <div id="vcApp" hidden>
       <p class="eyebrow" style="margin-top:18px">Founder tool</p>
-      <p class="gl-p mi-lead">Strip a photo&rsquo;s metadata, then hide a private message inside it. Only the Meta Index can open it. Everything runs on your device.</p>
-      <div class="mi-drop" id="vcDrop" role="button" tabindex="0"><i>+</i><b>Choose a photo</b><span>tap to select or drop one here</span></div>
-      <input type="file" id="vcFile" accept="image/*" hidden>
-      <div id="vcWork" hidden style="margin-top:14px"><div class="mi-frame"><img id="vcPrev" alt="Preview"></div><div class="mi-note vc-meta" id="vcBefore" style="margin-top:10px"></div></div>
+      <p class="gl-p mi-lead">Strip the metadata from a photo, audio or video file, then hide a private veil inside it. Only the Meta Index can open it. Everything runs on your device.</p>
+      <div class="mi-drop" id="vcDrop" role="button" tabindex="0"><i>+</i><b>Choose a file</b><span>photo, audio or video &middot; tap to select or drop one here</span></div>
+      <input type="file" id="vcFile" accept="image/*,audio/*,video/*,.mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,.weba,.mp4,.m4v,.mov,.webm,.mkv" hidden>
+      <div id="vcWork" hidden style="margin-top:14px"><div class="mi-frame"><img id="vcPrev" alt="Preview"><video id="vcPrevV" controls playsinline muted hidden></video><audio id="vcPrevA" controls preload="metadata" hidden style="display:block;width:100%;padding:14px;box-sizing:border-box"></audio></div><div class="mi-note vc-meta" id="vcBefore" style="margin-top:10px"></div></div>
       <div id="vcOpts" hidden>
-        <label class="fld">Secret message<textarea id="vcTxt" maxlength="2000" placeholder="The private text members will read" autocomplete="off"></textarea></label>
-        <label class="fld">Passphrase (optional, locks the message)<input id="vcPw" type="password" autocomplete="off" placeholder="Leave empty for no lock"></label>
+        <label class="fld">Veil data<textarea id="vcTxt" maxlength="2000" placeholder="The private data members will read in Meta Index" autocomplete="off"></textarea></label>
+        <label class="fld">Passphrase (optional, locks the veil data)<input id="vcPw" type="password" autocomplete="off" placeholder="Leave empty for no lock"></label>
+        <label class="fld">Embedded text (optional)<textarea id="vcEt" maxlength="2000" rows="3" placeholder="Shown as Embedded text in Meta Index. Separate from the veil data." autocomplete="off"></textarea></label>
+        <label class="fld">Taken time (optional)<input id="vcTk" type="datetime-local" step="1" autocomplete="off"></label>
+        <label class="fld">Modified time (optional)<input id="vcMd" type="datetime-local" step="1" autocomplete="off"></label>
+        <p class="note" style="margin-top:-4px">The two times are stored only as the taken and modified dates, never as text. Leave one empty to leave it out.</p>
         <label class="fld">Make SHA-256 start with (optional, hex, max 5)<input id="vcPre" maxlength="5" placeholder="e.g. cafe" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
-        <label class="nschk"><input type="checkbox" id="vcDtOn"> Set date and time in the metadata</label>
-        <label class="fld" id="vcDtW" hidden>Date and time<input id="vcDt" type="datetime-local" step="1" autocomplete="off"></label>
-        <label class="fld">Output format<select id="vcFmt"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select></label>
+        <label class="fld" id="vcFmtW">Output format<select id="vcFmt"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select></label>
+        <p class="note" id="vcAvNote" hidden style="margin-top:-4px">Audio and video keep their original format and are not re-encoded.</p>
         <button class="btn solid" id="vcGo" type="button">Clean &amp; create veil</button>
       </div>
       <div id="vcOut" hidden style="margin-top:14px">
         <div class="mi-note vc-meta" id="vcAfter"></div>
         <button class="btn solid" id="vcDl" type="button">Save / share file</button>
-        <p class="note">Post it in the channel as a <b>file</b>, not a photo. Telegram and other apps re-compress photos and delete the veil.</p>
+        <p class="note">Post it in the channel as a <b>file</b>, not as a photo, video or voice message. Telegram and other apps re-compress those and delete the veil.</p>
       </div>
     </div>
   </div></section>
