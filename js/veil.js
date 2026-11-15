@@ -1,10 +1,12 @@
 try{
-/* Veil Creator: FOUNDER ONLY. Strips an image's metadata and hides a (optionally passphrase-locked) message inside it. Runs fully on the device.
+/* Veil Creator: FOUNDER ONLY. Strips the metadata of a photo, audio or video file and hides a (optionally passphrase-locked) veil inside it. Runs fully on the device.
+   Separate fields: Veil data (hidden message), Embedded text (plain text stored in the file), Taken time and Modified time (stored only as dates, never as text).
    Access: the sidebar button is only shown to the owner, AND the tool refuses to open unless the server confirms the owner (owner-only edge function call, same backend rule as Portal lock). Fails closed. */
 (function(V){
 const $=id=>document.getElementById(id),enc=new TextEncoder(),MAGIC=[0x56,0x45,0x49,0x4C,0x31]; /* "VEIL1" */
 const TTL=120000,TIMEOUT=12000;
-let OK=false,okAt=0,gating=false,img=null,name='image',origBuf=null,url=null,pvUrl=null,busy=false,stop=false;
+const MAXAV=200*1048576; /* audio / video are read on the device; keep them within what a phone can handle */
+let OK=false,okAt=0,gating=false,img=null,kind='image',file=null,name='image',origBuf=null,url=null,pvUrl=null,busy=false,stop=false;
 const say=m=>{try{V.tg.app.showAlert(m)}catch(e){alert(m)}};
 const hap=t=>{try{V.tg.haptic(t)}catch(e){}};
 const toTop=()=>{const s=$('vcSheet');if(s)s.scrollTop=0};
@@ -34,12 +36,12 @@ async function enter(prev){
 /* leaving wipes everything: message, passphrase, image, result */
 function leave(){
  OK=false;okAt=0;stop=true;
- ['vcTxt','vcPw','vcPre','vcDt'].forEach(i=>{const e=$(i);if(e)e.value=''});
- {const c=$('vcDtOn'),w=$('vcDtW');if(c)c.checked=false;if(w)w.hidden=true}
+ ['vcTxt','vcPw','vcPre','vcEt','vcTk','vcMd'].forEach(i=>{const e=$(i);if(e)e.value=''});
  ['vcWork','vcOpts','vcOut'].forEach(i=>{const e=$(i);if(e)e.hidden=true});
+ ['vcPrevV','vcPrevA'].forEach(i=>{const e=$(i);try{e.pause()}catch(x){}e.removeAttribute('src');e.load&&e.load()});
  $('vcPrev').removeAttribute('src');$('vcBefore').textContent='';$('vcAfter').textContent='';$('vcFile').value='';
  if(url){URL.revokeObjectURL(url);url=null}if(pvUrl){URL.revokeObjectURL(pvUrl);pvUrl=null}
- img=null;origBuf=null;$('vcDl').onclick=null;
+ img=null;file=null;origBuf=null;$('vcDl').onclick=null;
  $('vcGate').hidden=false;$('vcApp').hidden=true}
 
 /* ---------- tool ---------- */
@@ -49,20 +51,39 @@ $('vcFile').onchange=e=>load(e.target.files[0]);
 ['dragleave','drop'].forEach(t=>$('vcDrop').addEventListener(t,e=>{e.preventDefault();$('vcDrop').classList.remove('on')}));
 $('vcDrop').addEventListener('drop',e=>load(e.dataTransfer.files[0]));
 
+const M=()=>V.mi||{};
+const AUD=/\.(mp3|m4a|wav|flac|ogg|oga|opus|aac|weba)$/i,VID=/\.(mp4|m4v|mov|webm|mkv|3gp)$/i;
+const kindOf=f=>/^image\//.test(f.type)?'image':/^audio\//.test(f.type)?'audio':/^video\//.test(f.type)?'video':AUD.test(f.name)?'audio':VID.test(f.name)?'video':'';
+function setKind(k){
+ kind=k;const im=k==='image';
+ $('vcPrev').hidden=!im;$('vcPrevV').hidden=k!=='video';$('vcPrevA').hidden=k!=='audio';
+ $('vcFmtW').hidden=!im;$('vcAvNote').hidden=im}
 async function load(f){
- if(!OK||!f||!f.type.startsWith('image/'))return;
- name=f.name.replace(/\.[^.]+$/,'')||'image';
- origBuf=await f.arrayBuffer();
+ if(!OK||!f)return;
+ const k=kindOf(f);
+ if(!k){say('Choose a photo, an audio file or a video file.');return}
+ if(k!=='image'&&f.size>MAXAV){say('That file is too large for this tool. Audio and video can be up to 200 MB.');return}
+ if(!M().cleanMedia&&k!=='image'){say('The media engine did not load. Reload the app and try again.');return}
+ name=f.name.replace(/\.[^.]+$/,'')||'file';file=f;
  if(pvUrl)URL.revokeObjectURL(pvUrl);
  const u=pvUrl=URL.createObjectURL(f);
- img=new Image();
- img.onerror=()=>say('This image format cannot be opened here. Try a PNG or JPEG.');
- img.onload=()=>{
-  $('vcPrev').src=u;
-  $('vcBefore').textContent=f.type+', '+img.naturalWidth+'\u00d7'+img.naturalHeight+'\nMetadata found: '+list(origBuf);
-  $('vcFmt').value=f.type==='image/jpeg'?'image/jpeg':'image/png';
-  ['vcWork','vcOpts'].forEach(i=>$(i).hidden=false);$('vcOut').hidden=true};
- img.src=u}
+ if(k==='image'){
+  origBuf=await f.arrayBuffer();
+  img=new Image();
+  img.onerror=()=>say('This image format cannot be opened here. Try a PNG or JPEG.');
+  img.onload=()=>{
+   setKind('image');$('vcPrev').src=u;
+   $('vcBefore').textContent=f.type+', '+img.naturalWidth+'×'+img.naturalHeight+'\nMetadata found: '+list(origBuf);
+   $('vcFmt').value=f.type==='image/jpeg'?'image/jpeg':'image/png';
+   ['vcWork','vcOpts'].forEach(i=>$(i).hidden=false);$('vcOut').hidden=true};
+  img.src=u;return}
+ img=null;origBuf=null;setKind(k);
+ const pv=k==='video'?$('vcPrevV'):$('vcPrevA');pv.src=u;
+ let info='reading…';
+ $('vcBefore').textContent=(f.type||k)+', '+M().fmtB(f.size)+'\nMetadata found: '+info;
+ ['vcWork','vcOpts'].forEach(i=>$(i).hidden=false);$('vcOut').hidden=true;
+ try{const r=await M().cleanMedia(f);info=r.info&&r.info.length?r.info.join(', '):(r.cl?'none':'unknown (this format’s tags cannot be read here)')}catch(e){info='unknown'}
+ if(file===f)$('vcBefore').textContent=(f.type||k)+', '+M().fmtB(f.size)+'\nMetadata found: '+info}
 function list(buf){
  const b=new Uint8Array(buf),l=[];
  if(b[0]===0x89){const dv=new DataView(buf);let p=8;
@@ -101,74 +122,112 @@ function injJpg(buf,pl){ /* private APP15 segment */
  o.set(b.slice(0,at));o.set(seg,at);o.set(b.slice(at),at+seg.length);return o}
 const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',b))].map(v=>v.toString(16).padStart(2,'0')).join('');
 
-/* ---------- date and time in the metadata ----------
-   The image is re-encoded clean, so the chosen date is written fresh: JPEG gets an Exif segment (DateTime, DateTimeOriginal,
-   DateTimeDigitized); PNG gets eXIf (same tags), tIME and a "Creation Time" text chunk. Time is stored exactly as typed. */
+/* ---------- taken time, modified time and embedded text ----------
+   The image is re-encoded clean, so these are written fresh. Taken time = Exif DateTimeOriginal + DateTimeDigitized. Modified time = Exif DateTime (+ PNG tIME).
+   Neither is ever written as a text chunk, so they cannot show up as Embedded text. Embedded text = JPEG comment / PNG iTXt "Comment". Times are stored exactly as typed. */
 const p2=n=>String(n).padStart(2,'0');
-function nowLocal(){const d=new Date();return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())}
-function readDate(){
- const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec($('vcDt').value||'');if(!m)return null;
+function readDate(id){
+ const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec($(id).value||'');if(!m)return null;
  const y=+m[1],mo=+m[2],d=+m[3],h=+m[4],mi=+m[5],s=+(m[6]||0),t=new Date(y,mo-1,d,h,mi,s);
  if(y<1900||y>2099||t.getFullYear()!==y||t.getMonth()!==mo-1||t.getDate()!==d||t.getHours()!==h)return null;
  return{y,mo,d,h,mi,s,ms:t.getTime(),exif:y+':'+p2(mo)+':'+p2(d)+' '+p2(h)+':'+p2(mi)+':'+p2(s),iso:y+'-'+p2(mo)+'-'+p2(d)+'T'+p2(h)+':'+p2(mi)+':'+p2(s),show:y+'-'+p2(mo)+'-'+p2(d)+' '+p2(h)+':'+p2(mi)+':'+p2(s)}}
-function exifTiff(ds){ /* little-endian TIFF: IFD0{DateTime, ExifIFD ptr} + ExifIFD{DateTimeOriginal, DateTimeDigitized} */
- const t=new Uint8Array(128),dv=new DataView(t.buffer),S=enc.encode(ds+'\0');
- t.set([0x49,0x49,0x2A,0,8,0,0,0]);
- dv.setUint16(8,2,true);
- dv.setUint16(10,0x0132,true);dv.setUint16(12,2,true);dv.setUint32(14,20,true);dv.setUint32(18,68,true);
- dv.setUint16(22,0x8769,true);dv.setUint16(24,4,true);dv.setUint32(26,1,true);dv.setUint32(30,38,true);
- dv.setUint32(34,0,true);
- dv.setUint16(38,2,true);
- dv.setUint16(40,0x9003,true);dv.setUint16(42,2,true);dv.setUint32(44,20,true);dv.setUint32(48,88,true);
- dv.setUint16(52,0x9004,true);dv.setUint16(54,2,true);dv.setUint32(56,20,true);dv.setUint32(60,108,true);
- dv.setUint32(64,0,true);
- t.set(S,68);t.set(S,88);t.set(S,108);return t}
+function exifTiff(tk,md){ /* little-endian TIFF: IFD0{DateTime (modified), ExifIFD ptr} + ExifIFD{DateTimeOriginal, DateTimeDigitized (taken)} */
+ const n0=(md?1:0)+(tk?1:0),ifd1=8+2+n0*12+4,sz1=tk?2+2*12+4:0;let sp=ifd1+sz1;
+ const t=new Uint8Array(sp+(md?20:0)+(tk?40:0)),dv=new DataView(t.buffer);
+ t.set([0x49,0x49,0x2A,0,8,0,0,0]);let o=8;dv.setUint16(o,n0,true);o+=2;
+ const str=(o,tag,txt)=>{dv.setUint16(o,tag,true);dv.setUint16(o+2,2,true);dv.setUint32(o+4,20,true);dv.setUint32(o+8,sp,true);t.set(enc.encode(txt+'\0'),sp);sp+=20};
+ if(md){str(o,0x0132,md.exif);o+=12}
+ if(tk){dv.setUint16(o,0x8769,true);dv.setUint16(o+2,4,true);dv.setUint32(o+4,1,true);dv.setUint32(o+8,ifd1,true);o+=12}
+ dv.setUint32(o,0,true);
+ if(tk){o=ifd1;dv.setUint16(o,2,true);o+=2;str(o,0x9003,tk.exif);o+=12;str(o,0x9004,tk.exif);o+=12;dv.setUint32(o,0,true)}
+ return t}
 function pngChunk(type,data){const c=new Uint8Array(12+data.length),dv=new DataView(c.buffer);
  dv.setUint32(0,data.length);c.set(enc.encode(type),4);c.set(data,8);dv.setUint32(8+data.length,crc(c.slice(4,8+data.length)));return c}
-function stamp(buf,type,d){ /* returns an ArrayBuffer of the image with the date metadata added */
- const b=new Uint8Array(buf),tiff=exifTiff(d.exif);let add,at;
+function stamp(buf,type,tk,md,txt){ /* returns the image with the chosen metadata added */
+ const b=new Uint8Array(buf),parts=[];let at;
  if(type==='image/png'){
-  const tm=new Uint8Array(7);new DataView(tm.buffer).setUint16(0,d.y);tm.set([d.mo,d.d,d.h,d.mi,d.s],2);
-  const parts=[pngChunk('eXIf',tiff),pngChunk('tIME',tm),pngChunk('tEXt',enc.encode('Creation Time\0'+d.iso))];
-  add=new Uint8Array(parts.reduce((n,x)=>n+x.length,0));let q=0;parts.forEach(x=>{add.set(x,q);q+=x.length});at=33}
- else{const L=8+tiff.length;add=new Uint8Array(2+L);add.set([0xFF,0xE1,L>>8,L&255]);add.set(enc.encode('Exif'),4);add.set(tiff,10);at=2}
+  if(tk||md)parts.push(pngChunk('eXIf',exifTiff(tk,md)));
+  if(md){const tm=new Uint8Array(7);new DataView(tm.buffer).setUint16(0,md.y);tm.set([md.mo,md.d,md.h,md.mi,md.s],2);parts.push(pngChunk('tIME',tm))}
+  if(txt){const t=enc.encode(txt),k=enc.encode('Comment'),d=new Uint8Array(k.length+5+t.length);d.set(k);d.set(t,k.length+5);parts.push(pngChunk('iTXt',d))}
+  at=33}
+ else{
+  if(tk||md){const tiff=exifTiff(tk,md),L=8+tiff.length,sg=new Uint8Array(2+L);sg.set([0xFF,0xE1,L>>8,L&255]);sg.set(enc.encode('Exif'),4);sg.set(tiff,10);parts.push(sg)}
+  if(txt){const t=enc.encode(txt).slice(0,65000),L=t.length+2,sg=new Uint8Array(4+t.length);sg.set([0xFF,0xFE,L>>8,L&255]);sg.set(t,4);parts.push(sg)}
+  at=2}
+ if(!parts.length)return buf;
+ const add=new Uint8Array(parts.reduce((n,x)=>n+x.length,0));let q=0;parts.forEach(x=>{add.set(x,q);q+=x.length});
  const o=new Uint8Array(b.length+add.length);o.set(b.slice(0,at));o.set(add,at);o.set(b.slice(at),at+add.length);return o.buffer}
-$('vcDtOn').onchange=()=>{const on=$('vcDtOn').checked;$('vcDtW').hidden=!on;if(on&&!$('vcDt').value)$('vcDt').value=nowLocal()};
 
+const hex=u=>[...new Uint8Array(u)].map(v=>v.toString(16).padStart(2,'0')).join('');
+const tick=async(n,pre)=>{$('vcGo').textContent='Searching… '+n.toLocaleString()+' tries (tap to cancel)';await new Promise(r=>setTimeout(r))};
 $('vcGo').onclick=async()=>{
- if(!OK||!img)return;
+ if(!OK||!file)return;
  if(busy){stop=true;return}
- const text=$('vcTxt').value;if(!text.trim()){say('Enter the secret message first.');return}
+ const text=$('vcTxt').value;if(!text.trim()){say('Enter the veil data first.');return}
  const pre=$('vcPre').value.trim().toLowerCase();
- if(pre&&!/^[0-9a-f]{1,5}$/.test(pre)){say('Hash prefix must be 1\u20135 hex characters (0-9, a-f).');return}
- let dt=null;if($('vcDtOn').checked){dt=readDate();if(!dt){say('Pick a valid date and time (year 1900\u20132099) or switch the date setting off.');return}}
- const type=$('vcFmt').value,c=document.createElement('canvas');
- c.width=img.naturalWidth;c.height=img.naturalHeight;
- const x=c.getContext('2d');
- if(type==='image/jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
- x.drawImage(img,0,0);
- let base=await (await new Promise(r=>c.toBlob(r,type,0.95))).arrayBuffer();
- if(dt)base=stamp(base,type,dt);
- const inj=type==='image/png'?injPng:injJpg,p=await prep(text,$('vcPw').value);
- let n=0,out=inj(base,build(p,n)),hash=await sha(out),note='';
- if(pre){
-  busy=true;stop=false;
-  while(!hash.startsWith(pre)&&!stop&&OK&&n<3000000){
-   n++;out=inj(base,build(p,n));hash=await sha(out);
-   if(n%100===0){$('vcGo').textContent='Searching\u2026 '+n.toLocaleString()+' tries (tap to cancel)';await new Promise(r=>setTimeout(r))}}
-  busy=false;$('vcGo').textContent='Clean & create veil';
-  note=hash.startsWith(pre)?'\nPrefix "'+pre+'" matched after '+(n+1).toLocaleString()+' tries.':'\nPrefix not found (stopped after '+(n+1).toLocaleString()+' tries).'}
- if(!OK)return;
- const ext=type==='image/png'?'png':'jpg',fb=new Blob([out],{type});
- if(url)URL.revokeObjectURL(url);
- url=URL.createObjectURL(fb);
- $('vcDl').onclick=()=>{
-  const f=new File([fb],name+'-veil.'+ext,dt?{type,lastModified:dt.ms}:{type});
-  if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});
-  else{const a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
-  hap()};
- $('vcAfter').textContent='All original metadata removed.'+(dt?'\nDate and time set to '+dt.show+' in the metadata.':'')+'\nVeil: '+(p.m?'locked with passphrase':'plain (no passphrase)')+', '+(out.length-base.byteLength)+' bytes hidden.\n\nSHA-256:\n'+hash+note;
- $('vcOut').hidden=false;$('vcOut').scrollIntoView({behavior:'smooth'})};
+ if(pre&&!/^[0-9a-f]{1,5}$/.test(pre)){say('Hash prefix must be 1–5 hex characters (0-9, a-f).');return}
+ const tk=$('vcTk').value?readDate('vcTk'):null,md=$('vcMd').value?readDate('vcMd'):null;
+ if(($('vcTk').value&&!tk)||($('vcMd').value&&!md)){say('Pick a valid taken / modified time (year 1900–2099) or clear it.');return}
+ const et=$('vcEt').value.trim();
+ const btn=$('vcGo'),label=btn.textContent;
+ try{
+  const p=await prep(text,$('vcPw').value);
+  let out,hash,note='',n=0,hidden=0,removed='',ext,type,fb;
+  if(kind==='image'){
+   if(!img)return;
+   type=$('vcFmt').value;const c=document.createElement('canvas');
+   c.width=img.naturalWidth;c.height=img.naturalHeight;
+   const x=c.getContext('2d');
+   if(type==='image/jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
+   x.drawImage(img,0,0);
+   let base=await (await new Promise(r=>c.toBlob(r,type,0.95))).arrayBuffer();
+   base=stamp(base,type,tk,md,et);
+   const inj=type==='image/png'?injPng:injJpg;
+   out=inj(base,build(p,n));hash=await sha(out);
+   if(pre){
+    busy=true;stop=false;
+    while(!hash.startsWith(pre)&&!stop&&OK&&n<3000000){
+     n++;out=inj(base,build(p,n));hash=await sha(out);
+     if(n%100===0)await tick(n)}
+    busy=false;btn.textContent=label;
+    note=hash.startsWith(pre)?'\nPrefix "'+pre+'" matched after '+(n+1).toLocaleString()+' tries.':'\nPrefix not found (stopped after '+(n+1).toLocaleString()+' tries).'}
+   hidden=out.length-base.byteLength;ext=type==='image/png'?'png':'jpg';fb=new Blob([out],{type});removed='All original metadata removed.'}
+  else{
+   const m=M();btn.textContent='Working…';
+   const r=await m.cleanMedia(file,(tk||md)?{c:tk?new Date(tk.ms):null,m:md?new Date(md.ms):null}:null);
+   if(!r.cl&&kind==='video'){btn.textContent=label;say('This video container is not supported. Use MP4, MOV, M4V, WebM or MKV.');return}
+   if(r.kind==='mp4'&&[tk,md].some(d=>d&&(d.y<1904||d.y>2040))){btn.textContent=label;say('MP4 and MOV store dates from 1904 to 2040. Pick a date in that range.');return}
+   const iso=d=>d&&d.iso,mk=k=>m.tailBuild(r.kind,m.bodyBuild(build(p,k),et,iso(tk),iso(md)));
+   const t0=mk(0);if(r.kind==='wav'){new DataView(r.parts[0].buffer).setUint32(4,r.riff+t0.u.length,true)}
+   /* hash the clean media once, then only the small tail per try */
+   const S=new m.Sha256(),CH=4194304;
+   for(const q of r.parts){if(q instanceof Uint8Array)S.update(q);else for(let o=0;o<q.size;o+=CH)S.update(new Uint8Array(await q.slice(o,o+CH).arrayBuffer()))}
+   S.update(t0.u.subarray(0,t0.off));
+   const fin=k=>{const t=mk(k),s=S.clone();s.update(t.u.subarray(t.off));return{t,h:s.digest()}};
+   let cur=fin(0);
+   if(pre){
+    busy=true;stop=false;
+    while(!cur.h.startsWith(pre)&&!stop&&OK&&n<3000000){n++;cur=fin(n);if(n%500===0)await tick(n)}
+    busy=false;btn.textContent=label;
+    note=cur.h.startsWith(pre)?'\nPrefix "'+pre+'" matched after '+(n+1).toLocaleString()+' tries.':'\nPrefix not found (stopped after '+(n+1).toLocaleString()+' tries).'}
+   hash=cur.h;hidden=cur.t.u.length;
+   const mt=/\.([^.]+)$/.exec(file.name);ext=mt?mt[1].toLowerCase():(kind==='audio'?'mp3':'mp4');type=file.type||(kind==='audio'?'audio/mpeg':'video/mp4');
+   fb=new Blob([...r.parts,cur.t.u],{type});
+   removed=r.cl?(r.info&&r.info.length?'Original metadata removed: '+r.info.join(', ')+'.':'No removable metadata was found.'):'This format’s own tags could not be stripped here; the veil was added.'}
+  if(!OK)return;
+  if(url)URL.revokeObjectURL(url);
+  url=URL.createObjectURL(fb);
+  $('vcDl').onclick=()=>{
+   const f=new File([fb],name+'-veil.'+ext,md?{type,lastModified:md.ms}:{type});
+   if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});
+   else{const a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+   hap()};
+  $('vcAfter').textContent=removed
+   +(tk?'\nTaken time set to '+tk.show+'.':'')+(md?'\nModified time set to '+md.show+'.':'')
+   +(et?'\nEmbedded text added ('+et.length+' characters).':'')
+   +'\nVeil data: '+(p.m?'locked with passphrase':'plain (no passphrase)')+', '+hidden+' bytes hidden.\n\nSHA-256:\n'+hash+note;
+  $('vcOut').hidden=false;$('vcOut').scrollIntoView({behavior:'smooth'})
+ }catch(e){busy=false;btn.textContent=label;console.error(e);say(e&&e.message==='big'?'This file is too large for that format.':'Could not create the veil from this file.')}};
 
 /* sidebar entry (Founder section, owner only) opens the view through a hidden proxy so the normal view switch runs */
 const mv=$('mveil');if(mv)mv.onclick=()=>{if(document.body.classList.contains('owner')){const g=$('vcGoView');if(g)g.click()}};
