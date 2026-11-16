@@ -215,8 +215,63 @@ async function loadList(){
  if(!r||!r.ok){$("auList").replaceChildren(h("p","note",(r&&r.error)||"Could not load the archive."));return}
  AL=Array.isArray(r.items)?r.items:[];drawList()}
 
+/* ================= Recover Corrupted Archive (members) ================= */
+/* The sync itself is the shared node sync screen (kind "recover"). The server decides how many members are needed, whether this member
+   already recovered in the last 24 hours, and the merits; this card only shows it. */
+let RS=null,rsSkew=0,rsTimer=0,rsBusy=false;
+const pad2=n=>String(n).padStart(2,"0");
+function rsStop(){clearInterval(rsTimer);rsTimer=0}
+function rsPaint(){
+ const box=$("arRec");if(!box)return;rsStop();box.textContent="";
+ if(!RS||!RS.ok)return;
+ const c=h("div","nscard ar-rec");
+ if(RS.processing){
+  c.appendChild(h("span","eyebrow","Recovery complete"));
+  c.appendChild(h("h3",null,"Recovering and Processing Corrupted Archive"));
+  const clk=h("div","ar-clock","--:--:--");clk.setAttribute("role","timer");c.appendChild(clk);
+  c.appendChild(h("p",null,"It will be available within 24 hours."));
+  box.appendChild(c);
+  const tick=()=>{const left=Math.max(0,RS.ends_at-(Date.now()+rsSkew));const s=Math.floor(left/1000);
+   clk.textContent=pad2(Math.floor(s/3600))+":"+pad2(Math.floor(s%3600/60))+":"+pad2(s%60);
+   if(left<=0){rsStop();rsRefresh()}};
+  tick();rsTimer=setInterval(tick,1000);return}
+ c.appendChild(h("span","eyebrow","Recovery protocol"));
+ c.appendChild(h("h3",null,"Recover Corrupted Archive"));
+ c.appendChild(h("p",null,"Synchronize nodes with "+RS.need+" members to recover a corrupted archive. Every member who completes it earns 10 merits."));
+ const b=h("button","btn solid","Recover Corrupted Archive");b.type="button";
+ b.onclick=async()=>{
+  if(b.disabled)return;b.disabled=true;
+  await rsRefresh();
+  if(RS&&RS.ok&&!RS.processing&&V.sync){V.sync.start("decrypt","recover",RS.need);const g=$("recGoSync");if(g)g.click()}
+  else b.disabled=false};
+ c.appendChild(b);box.appendChild(c)}
+async function rsRefresh(){
+ if(rsBusy)return;rsBusy=true;let r;try{r=await api.rec_status()}catch(e){r=null}rsBusy=false;
+ if(!r||!r.ok){if(!RS)$("arRec").textContent="";return}
+ RS=r;rsSkew=(+r.now||Date.now())-Date.now();rsPaint()}
+V.recover={refresh:rsRefresh};
+
+/* ================= Recovery Sync settings (founder only) ================= */
+let rsLoaded=false;
+function rsGate(html){const g=$("rsGate");g.hidden=false;g.innerHTML=html;$("rsApp").hidden=true}
+async function rsEnter(){
+ rsGate('<div class="mi-sp"></div><p>Verifying founder access</p>');
+ let r;try{r=await api.rec_get()}catch(e){r=null}
+ if(r&&r.ok){$("rsGate").hidden=true;$("rsApp").hidden=false;$("rsNeed").value=r.need;$("rsNote").textContent="";rsLoaded=true;return}
+ const m=(r&&r.error)||"We could not load this setting. Check your connection and try again.";
+ rsGate('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p></p>');$("rsGate").querySelector("p").textContent=m}
+function rsLeave(){$("rsGate").hidden=false;$("rsApp").hidden=true;rsLoaded=false}
+const rsSave=$("rsSave");
+if(rsSave)rsSave.onclick=async()=>{
+ const n=Number($("rsNeed").value),note=$("rsNote");
+ if(!Number.isInteger(n)||n<1||n>500){note.textContent="Enter a whole number from 1 to 500.";return}
+ rsSave.disabled=true;note.textContent="";let r;try{r=await api.rec_set({need:n})}catch(e){r=null}rsSave.disabled=false;
+ if(r&&r.ok){$("rsNeed").value=r.need;note.textContent="Saved. Members now need "+r.need+" online to recover an archive.";hap("medium")}
+ else note.textContent=(r&&r.error)||"Could not save. Try again."};
+
 /* sidebar entry (Founder section, owner only) opens the view through a hidden proxy so the normal view switch runs */
 const mu=$("marcup");if(mu)mu.onclick=()=>{if(document.body.classList.contains("owner")){const g=$("arcGoUp");if(g)g.click()}};
-if(V.tools){V.tools.hooks.archive={enter:load,leave(){stopVideo();stopAudio();closeLb()}};V.tools.hooks.arcup={enter,leave}}
+const mr=$("mrecset");if(mr)mr.onclick=()=>{if(document.body.classList.contains("owner")){const g=$("recGoSet");if(g)g.click()}};
+if(V.tools){V.tools.hooks.archive={enter(){load();rsRefresh()},leave(){stopVideo();stopAudio();closeLb();rsStop()}};V.tools.hooks.arcup={enter,leave};V.tools.hooks.recset={enter:rsEnter,leave:rsLeave}}
 })(window.ILLUMINATI);
 }catch(e){console.error(e)}

@@ -21,11 +21,13 @@ V.gate={ready,uid:()=>U,isNew,isDecrypted:()=>dec,locked:m=>typeof m.locked==="b
 
 /* ---------- node synchronization: the server checks every node and records the result; this page only shows it ---------- */
 const $=i=>document.getElementById(i),P=V.config.supabase,PROJECT=P.url,KEY=P.anonKey,api=V.services.api;
-const KINDS={decrypt:{NEED:5,ROUND:5000,CYCLE:180000},web:{NEED:100,ROUND:7000,CYCLE:600000}},CFG={NEED:5,ROUND:5000,GRACE:900,TOL:250,CYCLE:180000,PING:2500,ALIVE:7000};let R=CFG.ROUND,KIND="decrypt";
+const KINDS={decrypt:{NEED:5,ROUND:5000,CYCLE:180000},web:{NEED:100,ROUND:7000,CYCLE:600000},recover:{NEED:15,ROUND:5000,CYCLE:180000}},CFG={NEED:5,ROUND:5000,GRACE:900,TOL:250,CYCLE:180000,PING:2500,ALIVE:7000};let R=CFG.ROUND,KIND="decrypt";
 /* every sync call carries the kind: web syncs run in their own batch namespace on the server */
-const call=(f,d)=>api[f](KIND==="web"?Object.assign({mode:"web"},d):d);
+const call=(f,d)=>KIND==="recover"?api["rec_"+f](d):api[f](KIND==="web"?Object.assign({mode:"web"},d):d);
 const mm=ms=>Math.round(ms/60000)+" minute"+(ms>=120000?"s":"");
-function setKind(k){KIND=k==="web"?"web":"decrypt";Object.assign(CFG,KINDS[KIND]);R=CFG.ROUND;WAIT="Waiting for members. Synchronization starts when "+CFG.NEED+" are online.";
+/* recovery sync: the founder sets how many members are needed; the server sends it with every heartbeat */
+function paintNeed(){WAIT="Waiting for members. Synchronization starts when "+CFG.NEED+" are online.";$("nsRule").textContent="Your reference code is unique to you. Rebuild it before the timer ends. Synchronization only runs while "+CFG.NEED+" members are online.";if(KIND==="recover"&&$("nsWho"))$("nsWho").textContent="Join a batch. When "+CFG.NEED+" members are online and sync together, the corrupted archive is recovered. Every member who completes it earns 10 merits."}
+function setKind(k){KIND=k==="web"?"web":k==="recover"?"recover":"decrypt";Object.assign(CFG,KINDS[KIND]);R=CFG.ROUND;WAIT="Waiting for members. Synchronization starts when "+CFG.NEED+" are online.";
   $("nsRule").textContent="Your reference code is unique to you. Rebuild it before the timer ends. Synchronization only runs while "+CFG.NEED+" members are online.";
   $("nsCn").textContent="Messages live only on screen for online members and vanish every "+mm(CFG.CYCLE)+".";
   $("nsT").textContent=(R/1000).toFixed(1);$("nsRt").textContent=$("nsCt").textContent=Math.floor(CFG.CYCLE/60000)+":00"}
@@ -80,7 +82,8 @@ $("nsRnd").onclick=async()=>{
   if(!r||!r.ok||!r.batch){err.textContent=(r&&r.error)||"Could not find a batch. Try again.";return}
   join(r.batch)};
 /* ---------- game ---------- */
-async function syncClock(){try{const a=Date.now(),r=await fetch(rest("rpc/ems_now"),{method:"POST",headers:H,body:"{}"}),s=await r.json(),b=Date.now();if(typeof s==="number")off=s-(a+b)/2}catch(e){}}
+/* server clock: the edge function that checks every round also reports its time (lock_status). The old direct ems_now call is blocked for the public key, so it always failed and left phones with a wrong clock out of sync. */
+async function syncClock(){try{const a=Date.now(),r=await api.lock_status(),b=Date.now();if(r&&typeof r.now==="number"&&isFinite(r.now))off=r.now-(a+b)/2}catch(e){}}
 function newPuzzle(){
   const parts=[0,1,2,3,4].map(i=>CODE.slice(i*2,i*2+2)),r=rng(parseInt(hash(U+"|"+cur),36));let o,n=0;
   do{o=parts.slice();for(let i=4;i>0;i--){const j=Math.floor(r()*(i+1));[o[i],o[j]]=[o[j],o[i]]}}while(o.join("")===CODE&&++n<20);
@@ -113,6 +116,7 @@ function win(x){
   const W=KIND==="web";
   $("nsDn").textContent=mine?(W?"All 100 nodes aligned. Web access is now unlocked permanently.":"All nodes aligned. Your Member Identification Code is now decrypted permanently."):"All nodes aligned. Thank you for helping other members "+(W?"unlock web access.":"synchronize.")+(mer>0?" You earned "+mer+" merits.":"");
   $("nsDbtn").textContent=W?(mine?"Open web access":"Back to web access"):(mine?"View my identification code":"Back to profile");
+  if(KIND==="recover"){$("nsDn").textContent="Recovery complete. Recovering and processing the corrupted archive. It will be available within 24 hours."+(mer>0?" You earned "+mer+" merits.":"");$("nsDbtn").textContent="Back to archive"}
   try{V.sync.onwin&&V.sync.onwin(mine?"decrypt":"help",x,KIND)}catch(e){}}
 function tick(){
   if(decoded||!BATCH)return;
@@ -132,6 +136,7 @@ async function pulse(){
   busy=false;
   if(!r||b!==BATCH||decoded)return;
   if(!r.ok){if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
+  if(KIND==="recover"&&+r.need>0&&+r.need!==CFG.NEED){CFG.NEED=+r.need;paintNeed()}
   if(r.codes)Object.assign(CODES,r.codes);
   (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;line(String(m.u||"?").slice(0,21),String(m.t||"").slice(0,200),m.u===ME)}});
   if(r.won)return win(r);
@@ -178,11 +183,12 @@ addEventListener("pagehide",leaveApp);
 try{if(tg&&tg.onEvent){tg.onEvent("deactivated",leaveApp);tg.onEvent("activated",resumeApp)}}catch(e){}
 V.sync={onwin:null,onexit:null,
   setUser(n){WHO=String(n||"").replace(/^@/,"")},
-  start(mode,kind){
-    leaveBatch();setKind(kind);MODE=mode==="help"?"help":"decrypt";identify();
+  start(mode,kind,need){
+    leaveBatch();setKind(kind);if(KIND==="recover"&&+need>0)CFG.NEED=+need;MODE=mode==="help"?"help":"decrypt";identify();
     const W=KIND==="web";
     $("nsMode").textContent=MODE==="decrypt"?(W?"Decrypt web access":"Decrypt identification code"):"Help another member";
     $("nsWho").textContent=MODE==="decrypt"?(W?"Join a batch. When "+CFG.NEED+" members are online and sync together, web access is unlocked permanently.":"Join a batch. When "+CFG.NEED+" members are online and sync together, your Member Identification Code is decrypted permanently."):(W?"Join a batch and help other members unlock web access. Your own access is not affected. You earn 10 merits for every new member you help unlock.":"Join a batch and help other members sync. Your own code is not affected. You earn 10 merits for every new member you help decrypt.");
+    if(KIND==="recover"){$("nsMode").textContent="Recover corrupted archive";paintNeed()}
     decoded=false;show("nsPick");$("nsTS").click();search("")}};
 })(window.ILLUMINATI);
 }catch(e){console.error(e)}
@@ -414,10 +420,10 @@ $("#ccopy").addEventListener("click",async()=>{const b=$("#ccopy"),l=b.querySele
 $("#dcode").addEventListener("click",()=>{if(!$("#dcode").dataset.lk)$("#ccopy").click()});
 $("#cdec").addEventListener("click",()=>startSync("decrypt"));
 $("#chelp").addEventListener("click",()=>startSync("help"));
-V.sync.onwin=async(mode,x,kind)=>{if(kind==="web"){if(mode==="decrypt")paintWeb(true);return}if(!MEM||!V.gate.locked(MEM))return;
+V.sync.onwin=async(mode,x,kind)=>{if(kind==="recover"){try{V.recover&&V.recover.refresh()}catch(e){}return}if(kind==="web"){if(mode==="decrypt")paintWeb(true);return}if(!MEM||!V.gate.locked(MEM))return;
  if(typeof MEM.locked==="boolean"){let r;try{r=await api.me()}catch(e){r=null}if(r&&r.member&&r.member.locked===false){justDec=true;show(r.member)}}
  else{V.gate.markDecrypted();justDec=true;paintCode()}};
-V.sync.onexit=(reveal,kind)=>{if(kind==="web"){go("web");return}go("done");if(reveal&&justDec&&MEM){justDec=false;setTimeout(scramble,450)}};
+V.sync.onexit=(reveal,kind)=>{if(kind==="recover"){go("archive");return}if(kind==="web"){go("web");return}go("done");if(reveal&&justDec&&MEM){justDec=false;setTimeout(scramble,450)}};
 
 /* Merits + Hall of Merit (the server decides what each row shows; member codes are never listed) */
 const fmt=n=>(+n||0).toLocaleString("en-US");
