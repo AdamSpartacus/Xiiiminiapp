@@ -478,7 +478,7 @@ $("#fl").onclick=async e=>{const mb=e.target.closest("[data-merit]");if(mb){cons
  b.disabled=true;let r;try{r=await api[a](b.dataset.id)}catch(x){r=null}if(r&&r.ok)await load();else{b.disabled=false;b.textContent="Failed. Try again"}};
 
 /* Portal lock: founder controls. The backend enforces the lock, the exceptions and the expiry; the founder is never locked out. */
-let LK=null,LM=[],EXS=new Set(),lkLast=0,lkBusy=false;
+let LK=null,LM=[],EXS=new Set(),lkLast=0,lkBusy=false,UL=[],lkUT=0;
 const lkNote=(t,bad)=>{const n=$("#lnote");n.textContent=t||"";n.style.color=bad?"#ff9a9a":""};
 const lkName=id=>{const m=LM.find(x=>x.uid===id);return m?(m.username?"@"+m.username:(m.name||id)):id};
 const lkCnt=()=>{$("#lcnt").textContent=$("#lmsg").value.length+"/500"};
@@ -493,12 +493,12 @@ function lkPaint(){if(!LK)return;const s=$("#lkst"),rem=LK.locked&&LK.until?Date
  const g=$("#lgo");if(!g.dataset.arm)g.textContent=LK.locked?"Unlock portal":"Lock portal";
  $("#lrs").style.display=LK.locked?"":"none";$("#lst").textContent=LK.locked?"Locked":"Open"}
 function lkApply(r,fill){LK={locked:!!r.locked,until:r.until||null,off:(+r.now||Date.now())-Date.now()};lkLast=Date.now();
- if(fill){$("#lmsg").value=r.message||"";lkCnt();EXS=new Set(Array.isArray(r.exceptions)?r.exceptions:[])}lkPaint();lkDraw()}
+ if(fill){$("#lmsg").value=r.message||"";lkCnt();EXS=new Set(Array.isArray(r.exceptions)?r.exceptions:[])}UL=Array.isArray(r.users)?r.users:[];lkPaint();lkDraw();lkUDraw()}
 async function lkLoad(fill){if(lkBusy)return;lkBusy=true;lkLast=Date.now();let r;try{r=await api.lock_get()}catch(e){r=null}lkBusy=false;
  if(!r||!r.ok){lkNote((r&&r.error)||"Could not load the lock settings.",1);return}lkApply(r,fill)}
-async function lkOpen(){lkNote("");$("#lq").value="";LK=null;$("#lkst").className="lkst";$("#lkst").textContent="Loading\u2026";
+async function lkOpen(){lkNote("");$("#lq").value="";$("#luq").value="";ulNote("");LK=null;$("#lkst").className="lkst";$("#lkst").textContent="Loading\u2026";
  const l=api.list().catch(()=>null);await lkLoad(true);const r=await l;
- if(r&&r.ok&&Array.isArray(r.members)){LM=r.members;lkDraw()}else if(!LM.length)lkNote("Could not load the member list.",1)}
+ if(r&&r.ok&&Array.isArray(r.members)){LM=r.members;lkDraw();lkUDraw()}else if(!LM.length)lkNote("Could not load the member list.",1)}
 function lkDraft(){const msg=$("#lmsg").value.trim();if(!msg){lkNote("Write the warning members will see.",1);return null}if(msg.length>500){lkNote("The warning is limited to 500 characters.",1);return null}return{message:msg,exceptions:[...EXS]}}
 function lkMinutes(){const u=+$("#lunit").value;if(!u)return{ok:true,m:null};const n=Number($("#lnum").value),m=n*u;
  if(!Number.isInteger(n)||n<1||!Number.isInteger(m)||m>525600){lkNote("Enter a whole number, from 1 minute up to 365 days.",1);return{ok:false}}return{ok:true,m}}
@@ -519,7 +519,25 @@ $("#lgo").onclick=async()=>{const b=$("#lgo");if(!LK)return;
  if(LK.locked){if(await lkSend("lock_set",{locked:false},b))lkNote("Portal unlocked.");lkPaint();return}
  const d=lkDraft(),t=lkMinutes();if(!d||!t.ok){lkPaint();return}
  if(await lkSend("lock_set",Object.assign({locked:true,minutes:t.m},d),b))lkNote("Portal locked.");lkPaint()};
-setInterval(()=>{if(cur==="lock"&&LK&&!document.hidden)lkPaint()},1000);
+/* Lock one member: the founder locks a single member on their own (their own warning + timer, even while the portal is open). Enforced on the server. */
+const ulNote=(t,bad)=>{const n=$("#lunote");if(!n)return;n.textContent=t||"";n.style.color=bad?"#ff9a9a":""};
+function lkUDraw(){const q=$("#luq").value.trim().toLowerCase(),on=new Set(UL.map(x=>x.id)),me=String(V.gate.uid()||""),now=Date.now()+(LK?LK.off:0);
+ $("#lul").innerHTML=UL.length?UL.map(x=>{const rem=x.until?Date.parse(x.until)-now:null;return '<button type="button" class="lchip" data-ux="'+esc(x.id)+'" aria-label="Unlock member">'+esc(lkName(x.id))+' \u00b7 <span class="lut" data-u="'+esc(x.until||"")+'">'+(rem!==null?leftTxt(rem):"until unlocked")+'</span> \u00d7</button>'}).join(""):'<p class="note" style="margin:0">No members are locked individually.</p>';
+ const rows=LM.filter(m=>!on.has(m.uid)&&String(m.uid)!==me&&(!q||[m.username,m.name,m.code,m.uid,m.tg_username,m.tg].join(" ").toLowerCase().includes(q))).slice(0,40);
+ $("#lulist").innerHTML=rows.map(m=>'<div class="lrow"><div class="lwho"><b>'+esc(m.username?"@"+m.username:(m.name||"Member"))+'</b><small>'+esc(m.name||"")+' \u00b7 '+esc(m.uid)+'</small></div><button type="button" class="lbt" data-ul="'+esc(m.uid)+'">Lock</button></div>').join("")||'<p class="note">No members found.</p>'}
+function lkUTick(){const now=Date.now()+LK.off;let exp=false;document.querySelectorAll("#lul .lut").forEach(s=>{const u=s.dataset.u;if(!u)return;const rem=Date.parse(u)-now;if(rem<=0)exp=true;else s.textContent=leftTxt(rem)});if(exp&&Date.now()-lkLast>4000)lkLoad()}
+$("#luq").oninput=lkUDraw;
+$("#lul").onclick=async e=>{const b=e.target.closest("[data-ux]");if(!b)return;ulNote("");b.disabled=true;let r;try{r=await api.unlock_user({id:b.dataset.ux})}catch(_){r=null}
+ if(r&&r.ok){lkApply(r,false);V.tg.haptic("medium");ulNote("Member unlocked.")}else{b.disabled=false;ulNote((r&&r.error)||"Failed. Try again.",1)}};
+$("#lulist").onclick=async e=>{const b=e.target.closest("[data-ul]");if(!b)return;ulNote("");
+ if(b.dataset.arm!=="1"){document.querySelectorAll("#lulist [data-ul]").forEach(x=>{x.dataset.arm="";x.textContent="Lock"});b.dataset.arm="1";b.textContent="Tap again";clearTimeout(lkUT);lkUT=setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Lock"}},4000);return}
+ clearTimeout(lkUT);const id=b.dataset.ul,msg=$("#lmsg").value.trim(),u=+$("#lunit").value;let m=null;
+ const stop=t=>{b.dataset.arm="";b.textContent="Lock";ulNote(t,1)};
+ if(!msg||msg.length>500)return stop("Write the warning above first (1 to 500 characters).");
+ if(u){const n=Number($("#lnum").value);m=n*u;if(!Number.isInteger(n)||n<1||!Number.isInteger(m)||m>525600)return stop("Enter a whole number, from 1 minute up to 365 days.")}
+ b.disabled=true;let r;try{r=await api.lock_user({id,message:msg,minutes:m})}catch(_){r=null}
+ if(r&&r.ok){lkApply(r,false);V.tg.haptic("medium");ulNote(lkName(id)+" is locked.")}else{b.disabled=false;stop((r&&r.error)||"Failed. Try again.")}};
+setInterval(()=>{if(cur==="lock"&&LK&&!document.hidden){lkPaint();lkUTick()}},1000);
 })(window.ILLUMINATI);
 }catch(e){console.error(e)}
 try{
