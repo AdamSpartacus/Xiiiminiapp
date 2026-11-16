@@ -465,6 +465,16 @@ body.ready[data-view=archive] #menubtn,body.ready.owner[data-view=arcup] #menubt
 @media (min-width:700px){.view[data-view=archive] .sheet,.view[data-view=arcup] .sheet{height:calc(100% - 24px)}}
 .view[data-view=archive] [hidden],.view[data-view=arcup] [hidden]{display:none!important}
 .ar-lead{margin:6px 0 4px}
+/* Recover Corrupted Archive card + founder Recovery Sync view */
+body[data-view=recset] #cats button[data-go]{display:flex!important}
+body[data-view=recset] #cats .msub{display:flex}
+body.ready.owner[data-view=recset] #menubtn{display:flex}
+.view[data-view=recset] .sheet{height:calc(100% - var(--sat) - 60px);max-height:none}
+@media (min-width:700px){.view[data-view=recset] .sheet{height:calc(100% - 24px)}}
+.view[data-view=recset] [hidden]{display:none!important}
+.ar-rec{margin:14px 0 4px}.ar-rec h3{margin:8px 0 6px;font-size:18px}.ar-rec p{margin:0 0 12px}
+.ar-rec .btn{margin:0}.ar-rec .ar-clock{font:600 30px var(--sans);letter-spacing:.08em;margin:8px 0 10px;font-variant-numeric:tabular-nums}
+.rs-row{display:flex;gap:10px;align-items:stretch;margin:12px 0 6px}.rs-row input{flex:1;min-width:0}.rs-row .btn{margin:0}
 .ar-tabs{display:flex;gap:6px;margin:14px 0 2px;overflow-x:auto;scrollbar-width:none}.ar-tabs::-webkit-scrollbar{display:none}
 .ar-tabs button{flex:none;font:600 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:99px;padding:10px 14px;cursor:pointer}
 .ar-tabs button[aria-pressed=true]{background:linear-gradient(#fff,#b9bfca);color:#000;border-color:transparent}
@@ -837,6 +847,7 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
   <section class="view" data-view="archive"><div class="glass sheet" id="arSheet">
     <p class="sh">Corrupted Archive</p>
     <p class="gl-p ar-lead">Recovered files from the network. Images and audio can be saved as often as you like, with their original metadata intact. Video is stream-only.</p>
+    <div id="arRec" aria-live="polite"></div>
     <div class="ar-tabs" id="arTabs" role="group" aria-label="Filter the archive"><button type="button" data-f="all" aria-pressed="true">All</button><button type="button" data-f="image" aria-pressed="false">Images</button><button type="button" data-f="audio" aria-pressed="false">Audio</button><button type="button" data-f="video" aria-pressed="false">Video</button></div>
     <div id="arList" aria-live="polite"></div>
     <p class="note" id="arNote" role="status"></p>
@@ -856,14 +867,26 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
       <div id="auList"></div>
     </div>
   </div></section>
+
+  <section class="view" data-view="recset"><div class="glass sheet">
+    <div class="fhead"><div class="frow"><button class="fback" type="button" data-go="archive" aria-label="Back to the archive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Archive</span></button><h2>Recovery Sync</h2></div></div>
+    <div class="mi-gate" id="rsGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
+    <div id="rsApp" hidden>
+      <p class="eyebrow" style="margin-top:18px">Founder</p>
+      <p class="gl-p mi-lead">Set how many members must be online and synchronized together to recover a corrupted archive. Each member who completes it earns 10 merits and sees a 24 hour processing timer.</p>
+      <label class="fld">Members required<input id="rsNeed" type="number" inputmode="numeric" min="1" max="500" step="1" autocomplete="off"></label>
+      <button class="btn solid" id="rsSave" type="button">Save</button>
+      <p class="note" id="rsNote" role="status"></p>
+    </div>
+  </div></section>
 </main>
 <div class="mi-toast" id="miToast" role="status" aria-live="polite"></div>
 <div id="arLb" role="dialog" aria-modal="true" aria-label="Image viewer"><img id="arLbI" alt=""><div class="ar-act"><button class="btn" id="arLbX" type="button">Close</button><button class="btn solid" id="arLbS" type="button">Save original</button></div></div>
 <button id="lbtn" type="button" aria-label="Portal lock" title="Portal lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></button>
 <button id="fbtn" type="button" aria-label="Founders" title="Founders"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6 6.1 20.8l1.2-6.6L2.4 9.6l6.7-.9z"/></svg></button>
-<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="archive" aria-pressed="false">Corrupted Archive</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button><button class="mbtn own" id="marcup" type="button">Archive Upload</button></div>
+<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="archive" aria-pressed="false">Corrupted Archive</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button><button class="mbtn own" id="marcup" type="button">Archive Upload</button><button class="mbtn own" id="mrecset" type="button">Recovery Sync</button></div>
 <button id="menubtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="cats"><svg class="bars" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="arcGoUp" data-go="arcup" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="arcGoUp" data-go="arcup" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSync" data-go="sync" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSet" data-go="recset" type="button" hidden aria-hidden="true" tabindex="-1"></button>
 
 <div id="plock" role="alertdialog" aria-modal="true" aria-labelledby="plh" aria-describedby="plm"><div class="glass pl-card"><div class="pl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div><div class="eyebrow">Warning from the System</div><h2 id="plh">Portal Locked</h2><p class="pl-msg" id="plm"></p><div class="pl-t" id="plc"></div></div></div>
 
