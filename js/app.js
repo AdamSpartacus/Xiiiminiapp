@@ -101,6 +101,7 @@ async function submit(ans,rd){
   const b=BATCH;let x;try{x=await call("sync_done",{batch:b,round:rd,answer:ans})}catch(e){x=null}
   if(b!==BATCH||decoded)return;
   if(x&&x.ok&&x.won)return win(x);
+  if(x&&x.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}
   if(!x||!x.ok)setSt((x&&x.error)||"Could not reach the server. Try again next round.","nsbad")}
 async function judge(rd){
   if(decoded||!active||!BATCH)return;
@@ -135,7 +136,7 @@ async function pulse(){
   let r;try{r=await call("sync_ping",{batch:b,after:lastChat})}catch(e){r=null}
   busy=false;
   if(!r||b!==BATCH||decoded)return;
-  if(!r.ok){if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
+  if(!r.ok){if(r.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
   if(KIND==="recover"&&+r.need>0&&+r.need!==CFG.NEED){CFG.NEED=+r.need;paintNeed()}
   if(r.codes)Object.assign(CODES,r.codes);
   (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;line(String(m.u||"?").slice(0,21),String(m.t||"").slice(0,200),m.u===ME)}});

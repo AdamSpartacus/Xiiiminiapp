@@ -225,24 +225,30 @@ function rsPaint(){
  const box=$("arRec");if(!box)return;rsStop();box.textContent="";
  if(!RS||!RS.ok)return;
  const c=h("div","nscard ar-rec");
- if(RS.processing){
-  c.appendChild(h("span","eyebrow","Recovery complete"));
+ if(RS.state==="processing"){
+  /* the archive was recovered by the first members who completed it: every member sees the timer, only those members earned merits */
+  c.appendChild(h("span","eyebrow",RS.took_part?"Recovery complete":"Archive recovered"));
   c.appendChild(h("h3",null,"Recovering and Processing Corrupted Archive"));
   const clk=h("div","ar-clock","--:--:--");clk.setAttribute("role","timer");c.appendChild(clk);
-  c.appendChild(h("p",null,"It will be available within 24 hours."));
+  c.appendChild(h("p",null,"It will be available within 24 hours."+(RS.took_part?"":" The first members to synchronize recovered it for everyone.")));
   box.appendChild(c);
   const tick=()=>{const left=Math.max(0,RS.ends_at-(Date.now()+rsSkew));const s=Math.floor(left/1000);
    clk.textContent=pad2(Math.floor(s/3600))+":"+pad2(Math.floor(s%3600/60))+":"+pad2(s%60);
    if(left<=0){rsStop();rsRefresh()}};
   tick();rsTimer=setInterval(tick,1000);return}
+ if(RS.state!=="open"){
+  c.appendChild(h("span","eyebrow","Recovery protocol"));
+  c.appendChild(h("h3",null,"No archive to recover"));
+  c.appendChild(h("p",null,"No corrupted archive is waiting to be recovered right now."));
+  box.appendChild(c);return}
  c.appendChild(h("span","eyebrow","Recovery protocol"));
  c.appendChild(h("h3",null,"Recover Corrupted Archive"));
- c.appendChild(h("p",null,"Synchronize nodes with "+RS.need+" members to recover a corrupted archive. Every member who completes it earns 10 merits."));
+ c.appendChild(h("p",null,"Synchronize nodes with "+RS.need+" members to recover a corrupted archive. Only the first members to complete it recover it for everyone, and each earns 10 merits."));
  const b=h("button","btn solid","Recover Corrupted Archive");b.type="button";
  b.onclick=async()=>{
   if(b.disabled)return;b.disabled=true;
   await rsRefresh();
-  if(RS&&RS.ok&&!RS.processing&&V.sync){V.sync.start("decrypt","recover",RS.need);const g=$("recGoSync");if(g)g.click()}
+  if(RS&&RS.ok&&RS.state==="open"&&V.sync){V.sync.start("decrypt","recover",RS.need);const g=$("recGoSync");if(g)g.click()}
   else b.disabled=false};
  c.appendChild(b);box.appendChild(c)}
 async function rsRefresh(){
@@ -254,10 +260,22 @@ V.recover={refresh:rsRefresh};
 /* ================= Recovery Sync settings (founder only) ================= */
 let rsLoaded=false;
 function rsGate(html){const g=$("rsGate");g.hidden=false;g.innerHTML=html;$("rsApp").hidden=true}
+let rsSt="idle";
+function rsState(r){
+ rsSt=(r&&r.state)||"idle";
+ $("rsState").textContent=rsSt==="open"?"Open. Members can recover this archive now. The first members to complete it unlock it for everyone.":rsSt==="processing"?"Recovered. Every member sees the 24 hour processing timer. Open a new recovery when there is another archive.":"No recovery is open. Members cannot recover anything until you open one.";
+ $("rsOpen").hidden=rsSt==="open";$("rsOpen").textContent="Open new archive recovery"}
+const rsOpen=$("rsOpen");
+if(rsOpen)rsOpen.onclick=async()=>{
+ const note=$("rsONote");
+ if(rsSt==="processing"&&!rsOpen.dataset.arm){rsOpen.dataset.arm="1";rsOpen.textContent="Tap again to confirm";clearTimeout(rsOpen._t);rsOpen._t=setTimeout(()=>{rsOpen.dataset.arm="";rsOpen.textContent="Open new archive recovery"},4000);return}
+ clearTimeout(rsOpen._t);rsOpen.dataset.arm="";rsOpen.disabled=true;note.textContent="";let r;try{r=await api.rec_open()}catch(e){r=null}rsOpen.disabled=false;
+ if(r&&r.ok){rsState(r);note.textContent="A new recovery is open. Members can recover it now.";hap("medium")}
+ else{note.textContent=(r&&r.error)||"Could not open a new recovery. Try again.";rsOpen.textContent="Open new archive recovery"}};
 async function rsEnter(){
  rsGate('<div class="mi-sp"></div><p>Verifying founder access</p>');
  let r;try{r=await api.rec_get()}catch(e){r=null}
- if(r&&r.ok){$("rsGate").hidden=true;$("rsApp").hidden=false;$("rsNeed").value=r.need;$("rsNote").textContent="";rsLoaded=true;return}
+ if(r&&r.ok){$("rsGate").hidden=true;$("rsApp").hidden=false;$("rsNeed").value=r.need;$("rsNote").textContent="";$("rsONote").textContent="";rsState(r);rsLoaded=true;return}
  const m=(r&&r.error)||"We could not load this setting. Check your connection and try again.";
  rsGate('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p></p>');$("rsGate").querySelector("p").textContent=m}
 function rsLeave(){$("rsGate").hidden=false;$("rsApp").hidden=true;rsLoaded=false}
