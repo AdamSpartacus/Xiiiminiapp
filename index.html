@@ -873,10 +873,11 @@ video.ar-v{display:block;width:100%;max-height:52vh;background:#000;-webkit-touc
     <div class="mi-gate" id="rsGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
     <div id="rsApp" hidden>
       <p class="eyebrow" style="margin-top:18px">Founder</p>
-      <p class="gl-p mi-lead">Set how many members must be online and synchronized together to recover a corrupted archive. Each member who completes it earns 10 merits and sees a 24 hour processing timer.</p>
+      <p class="gl-p mi-lead">Set how many members must be online and synchronized together to recover a corrupted archive. Each archive can be recovered once: the first members to complete it earn 10 merits and unlock it for everyone, and every member then sees the 24 hour processing timer. Open a new recovery when there is another archive.</p>
       <label class="fld">Members required<input id="rsNeed" type="number" inputmode="numeric" min="1" max="500" step="1" autocomplete="off"></label>
       <button class="btn solid" id="rsSave" type="button">Save</button>
       <p class="note" id="rsNote" role="status"></p>
+      <div class="nscard" style="margin-top:22px"><p class="nslbl">Current recovery</p><p id="rsState"></p><button class="btn" id="rsOpen" type="button">Open new archive recovery</button><p class="note" id="rsONote" role="status"></p></div>
     </div>
   </div></section>
 </main>
