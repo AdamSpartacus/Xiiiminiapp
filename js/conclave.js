@@ -155,7 +155,7 @@ function measure(){const a=topEl.getBoundingClientRect(),b=botEl.getBoundingClie
 resize();measure();
 if(window.ResizeObserver){ro=new ResizeObserver(resize);ro.observe(cv)}else addEventListener('resize',resize);
 const ez=x=>{x=Math.min(Math.max(x,0),1);return x*x*x*(x*(x*6-15)+10)};
-let th=-.5,vel=1.1,drag=false,lx=0,frame=0;const SPIN=1.1;
+let th=-.5,vel=1.7,drag=false,lx=0,frame=0;const SPIN=1.7;
 cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;vel=0;try{cv.setPointerCapture(e.pointerId)}catch(_){}});
 cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lx;lx=e.clientX;th+=dx*.011;vel=vel*.6+dx*.011*60*.4});
 const up=()=>{drag=false};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
@@ -428,7 +428,9 @@ function chatUI(){if(!window.CLOK)return;chatLeave();CHAT.alive=true;G=null;
 function intro(){const el=$("#intro");menu();if(!el||!window.INTRO3D){el&&el.remove();return}
  let done=0;const go=()=>{if(done)return;done=1;try{INTRO3D.stop()}catch(e){}el.classList.add("out");setTimeout(()=>el.remove(),520)};
  $("#enter").onclick=go;
- INTRO3D.start(()=>{$("#ildg").textContent="Drag to turn"},()=>{$("#ildg").textContent=""});}
+ let tm=0;const auto=()=>{if(!tm)tm=setTimeout(go,4000)};
+ INTRO3D.start(()=>{$("#ildg").textContent="Drag to turn";auto()},()=>{$("#ildg").textContent="";auto()});
+ setTimeout(auto,8000);}
 
 intro();
 
