@@ -264,7 +264,7 @@ const hdrT=()=>{const t=Math.max(0,G.end-Date.now()),m=Math.floor(t/60000),sc=Ma
 function menu(){GEN++;G=null;_rest="";$("main").innerHTML=`<div class="seal" style="--t:84px;margin:30px auto 16px">◬</div><p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:42px">CONCLAVE</div><p class="sub">The Inner Circle convenes. Only one becomes Grand Master.</p><div class="card"><p style="margin:0 0 8px">Walk the hidden halls of the Order. Acquire holdings, collect tribute, survive omens and vote on decrees that bend the rules. Your mandate is secret, and so are your rivals’.</p><p class="eb" style="margin:16px 0 8px">Length</p><div class="dock"><button class="pri" style="pointer-events:none">Long · 30 minutes</button></div><p class="eb" style="margin:16px 0 8px">Play with other members</p><div class="dock"><button class="pri" onclick="batchUI()">Batches · create or join</button></div><p class="note" style="margin:10px 0 0">Real members only. A game needs at least ${MINP} members in the batch, and every seat is a real person. Live chat is inside your batch.</p></div><div class="dock" style="margin-top:6px"><button onclick="location.href='../'">Back to portal</button></div>`}
 function start(n,names){if(!window.CLOK)return;GEN++;_rest="";G={end:Date.now()+GAME_MS,away:0,r:1,R:LEN,cur:0,chair:0,ph:"",pot:0,log:[],dice:[0,0],sel:null,fl:{toll:0,sal:200,levy:100},own:Array(32).fill(-1),hist:{},alert:"",pi:0,props:PROPS(),P:[]};
 for(let i=0;i<n;i++)G.P.push({i,n:(names&&names[i])||NAMES[i],cash:1500,inf:0,pos:0,ob:rnd(OBJ.length),earned:0});say("The Conclave is called to order.");turn()}
-async function turn(){const p=G.P[G.cur];G.ph=(p.i||G.away)?"wait":"roll";G.sel=null;render();if(p.i){await sleep(400);roll(p)}else if(G.away)awayTurn(p)}
+async function turn(){const p=G.P[G.cur];if(p.out){endTurn();return}G.ph=(p.i||G.away)?"wait":"roll";G.sel=null;render();if(p.i){await sleep(400);roll(p)}else if(G.away)awayTurn(p)}
 async function sellAll(p){const mine=G.own.map((x,k)=>x==p.i?k:-1).filter(k=>k>=0);if(!mine.length)return;say(`${p.n} is inactive. ${mine.length>1?"Their holdings go":"Their holding goes"} to bidding.`);render();await sleep(500);for(const k of mine){if(G.own[k]==p.i)await auction(k,p)}}
 async function awayTurn(p){await sellAll(p);if(!G.away){G.ph="roll";render();return}await sleep(300);roll(p)}
 async function roll(p){const a=1+rnd(6),b=1+rnd(6);G.dice=[a,b];G.ph="move";G.sel=null;G.rolling=1;render();await sleep(450);G.rolling=0;
@@ -294,7 +294,7 @@ async function auction(k,seller){const t=T[k],val=t[3],floor=Math.max(10,Math.ro
 G.P.forEach(q=>vals[q.i]=val*(.6+Math.random()*.55));
 const A=G.auc={k,seller:seller.i,bid:0,top:-1,ask:0,waiting:0};G.ph="bid";say(`${t[1]} goes to bidding. Opening bid ${fmt(floor)}.`);render();await sleep(500);
 for(let r=0;r<14;r++){let up=false;
-for(const q of G.P){if(q.i==seller.i||q.i==A.top||out.has(q.i))continue;const next=A.top<0?floor:A.bid+step;if(next>q.cash)continue;let go;
+for(const q of G.P){if(q.i==seller.i||q.i==A.top||q.out||out.has(q.i))continue;const next=A.top<0?floor:A.bid+step;if(next>q.cash)continue;let go;
 if(q.i)go=next<=vals[q.i]&&Math.random()<.85;
 else if(G.away){go=false;out.add(0)}
 else{A.ask=next;A.waiting=1;render();go=await new Promise(r=>G.bidRes=r);A.waiting=0;if(!go)out.add(0)}
@@ -417,12 +417,21 @@ async function bJoin(id,name,pub,er,act,pre){
   bBeat();bLobby()}
  catch(e){try{BT.ch&&BT.cl.removeChannel(BT.ch)}catch(_){}BT.ch=null;if(joined)try{window.CLCALL("cb_leave",{batch:sn})}catch(_){}if(er)er.textContent="Could not join the batch. Try again."}}
 function bLobbyUpdate(){if(!BT.ch)return;const st=BT.ch.presenceState(),m=[];Object.values(st).forEach(a=>a.forEach(x=>x&&x.n&&m.push(x)));m.sort((a,b)=>a.t-b.t||(a.k<b.k?-1:1));
- BT.members=m;BT.host=!!m.length&&m[0].k==BME+"~"+BT.sid;
+ BT.members=m;bWatch(m);BT.host=!!m.length&&m[0].k==BME+"~"+BT.sid;
  if(!BT.playing&&m.length>6&&m.findIndex(x=>x.k==BME+"~"+BT.sid)>=6){batchLeave();batchUI("S");const r=$("#bRe");if(r)r.textContent="That batch is full.";return}
  bAdvert();const mem=$("#bMem");if(!mem)return;
  mem.innerHTML=m.slice(0,6).map((x,i)=>`<span class="${i==0?"h":""}">${i==0?"◬ ":""}${esc(x.n)}</span>`).join("");
  $("#bCnt").textContent=Math.min(m.length,6)+"/6 online";
  const go=$("#bGo"),w=$("#bWait"),enough=m.length>=MINP;go.hidden=!BT.host;go.disabled=!enough;w.hidden=BT.host&&enough;w.textContent=BT.host?`Waiting for ${MINP-m.length} more member${MINP-m.length==1?"":"s"}. At least ${MINP} are needed to start.`:"Waiting for the host to start."}
+/* a member who leaves a running game: after a short grace (reconnects), their holdings go back to the Order and they stop playing */
+function bWatch(m){if(!BT.playing||!BT.seats||!G||!G.P)return;const here=new Set(m.map(x=>x.n));
+ BT.seats.forEach((nm,i)=>{if(i==0||!G.P[i]||G.P[i].out)return;
+  if(here.has(nm)){clearTimeout(BT.gone[nm]);BT.gone[nm]=0;return}
+  if(BT.gone[nm])return;
+  BT.gone[nm]=setTimeout(()=>{BT.gone[nm]=0;if(!G||!G.P||!G.P[i]||G.P[i].out||!BT.ch)return;
+   const still=new Set(Object.values(BT.ch.presenceState()).flat().map(x=>x&&x.n));if(still.has(nm))return;
+   let c=0;G.own.forEach((o,k)=>{if(o==i){G.own[k]=-1;c++}});G.P[i].out=true;
+   say(`${esc(nm)} left the Conclave.${c?` Their ${c==1?"holding returns":c+" holdings return"} to the Order.`:""}`);render()},6000)})}
 function bChat(){const h=BT.msgs.map(x=>`<p><b>${esc(x.n)}</b> ${esc(x.t)}</p>`).join("");["#bMsgs","#gMsgs"].forEach(k=>{const c=$(k);if(!c)return;c.innerHTML=h;c.scrollTop=c.scrollHeight})}
 function bLobby(){
  bShell(`<button class="bk" onclick="batchLeave();batchUI('S')">‹ Leave batch</button><p class="eb" style="text-align:left;margin:0">${BT.pub?"Open batch":"Friends batch"}</p><div class="wm" style="text-align:left;font-size:28px;margin:2px 0 6px;text-indent:0">${esc(BT.name.toUpperCase())}</div>
@@ -436,7 +445,7 @@ function bLobby(){
  bLobbyUpdate();bChat()}
 function bOnStart(p){if(!BT.ch||BT.playing||!p||!Array.isArray(p.m)||p.m.length<MINP||p.m.length>6)return;const me=BME+"~"+BT.sid;if(!p.m.some(x=>x.k==me))return;
  const nm=["You",...p.m.filter(x=>x.k!=me).map(x=>x.n)];
- BT.playing=true;bAdvert();start(nm.length,nm)}
+ BT.playing=true;BT.seats=nm;BT.gone={};bAdvert();start(nm.length,nm)}
 async function batchLeave(keepDir){const ch=BT.ch,sn=BT.sn;BT.ch=null;BT.sn="";BT.host=false;BT.playing=false;BT.members=[];clearInterval(BT.bt);if(sn){try{window.CLCALL("cb_leave",{batch:sn})}catch(e){}}if(ch){try{await ch.untrack()}catch(e){}try{BT.cl.removeChannel(ch)}catch(e){}}
  if(!keepDir&&BT.dir){clearInterval(BT.dir);BT.dir=null}}
 
