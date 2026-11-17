@@ -1,22 +1,43 @@
 /* Conclave (members-only game). Single source: runs inside the sandboxed frame that index.html builds from <template id="clvTpl"> (see clvOpen in app.js). */
 /* ---- 1. membership gate ---- */
 /* Members only: the server (illuminati-portal) checks the signed Telegram login. Nothing below the gate starts until it says "member". */
-window.CLOK=false;window.CLNAME="";
 (function(){
 const SB={url:"https://agzhxwditnlzdcuqjjfz.supabase.co",key:"sb_publishable_-B_v-SqjFjh_Q8R29CksBQ_nO4KgmYy",fn:"illuminati-portal"};
-const g=document.getElementById("mgate"),t=document.getElementById("mgt"),m=document.getElementById("mgm"),rb=document.getElementById("mgr");
+let _ok=false,_nm="",_at=0,_busy=null;
+/* read-only: the flag and name can only be set by the server check below */
+Object.defineProperty(window,"CLOK",{get:()=>_ok,configurable:false});
+Object.defineProperty(window,"CLNAME",{get:()=>_nm,configurable:false});
+const g=document.getElementById("mgate"),gp=g&&g.parentNode,t=document.getElementById("mgt"),m=document.getElementById("mgm"),rb=document.getElementById("mgr");
 rb.onclick=()=>location.reload();
 function app(){try{const a=window.Telegram&&Telegram.WebApp;if(a&&a.initData)return a}catch(e){}try{if(window.parent!==window){const p=parent.Telegram&&parent.Telegram.WebApp;if(p&&p.initData)return p}}catch(e){}return null}
-function deny(msg,retry){window.CLOK=false;t.textContent="Members only";m.textContent=msg;rb.style.display=retry?"":"none";try{window.INTRO3D&&INTRO3D.stop()}catch(e){}const mm=document.querySelector("main");if(mm)mm.innerHTML=""}
-async function check(){
- const a=app();if(!a){deny("Open the Conclave from the Illuminati app in Telegram.");return}
- let r;try{const res=await fetch(SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData})});r=await res.json()}catch(e){deny("Could not verify your membership. Check your connection.",1);return}
- if(r&&r.status==="member"&&r.member){window.CLOK=true;const u=String(r.member.username||"").replace(/[^\w]/g,"").slice(0,16);window.CLNAME=u;g.remove();window.dispatchEvent(new Event("clok"))}
- else if(r&&r.status==="banned")deny("Your membership has been revoked.");
+function deny(msg,retry){const was=_ok;_ok=false;_nm="";_at=0;t.textContent="Members only";m.textContent=msg;rb.style.display=retry?"":"none";if(gp&&!g.isConnected)gp.appendChild(g);
+ try{window.INTRO3D&&INTRO3D.stop()}catch(e){}
+ try{if(typeof chatLeave==="function")chatLeave()}catch(e){}try{if(typeof batchLeave==="function")batchLeave()}catch(e){}
+ const mm=document.querySelector("main");if(mm)mm.innerHTML=""}
+async function verify(){
+ const a=app();if(!a){deny("Open the Conclave from the Illuminati app in Telegram.");return false}
+ let r;try{const res=await fetch(SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData})});r=await res.json()}
+ catch(e){if(!_ok)deny("Could not verify your membership. Check your connection.",1);return false}
+ if(r&&r.status==="member"&&r.member){const first=!_ok;_ok=true;_at=Date.now();_nm=String(r.member.username||"").replace(/[^\w]/g,"").slice(0,16);if(g.isConnected)g.remove();if(first)window.dispatchEvent(new Event("clok"));return true}
+ if(r&&r.status==="banned")deny("Your membership has been revoked.");
  else if(r&&r.status==="locked")deny("The portal is locked right now.");
  else if(r&&r.status==="none")deny("Only registered members can play. Complete your member profile first.");
- else deny((r&&r.error)||"Only registered members can play.",1)}
-check()})();
+ else deny((r&&r.error)||"Only registered members can play.",1);
+ return false}
+/* Re-checks with the server before every join (cached 45s). Fails closed. */
+function recheck(force){if(_ok&&!force&&Date.now()-_at<45000)return Promise.resolve(true);return _busy||(_busy=verify().finally(()=>{_busy=null}))}
+Object.defineProperty(window,"CLRECHECK",{value:recheck,writable:false,configurable:false});
+/* Realtime token: issued by conclave-token only to verified members (1h). Channels are private, so Supabase itself rejects everyone else. */
+let _tk=null,_te=0,_tp=null;
+function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resolve(_tk);if(_tp)return _tp;
+ _tp=(async()=>{try{const a=app();if(!a||!(await recheck()))return null;
+  const res=await fetch(SB.url+"/functions/v1/conclave-token",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({initData:a.initData})});const r=await res.json();
+  if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
+Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
+
+/* A revoked or banned member is removed from live rooms within a minute. */
+setInterval(()=>{if(_ok)recheck(true)},60000);
+recheck(true)})();
 ;
 /* ---- 2. 3D intro ---- */
 /* Conclave intro: the liquid-chrome monogram -> mercury -> eye pyramid, taken from the Illuminati member portal.
@@ -336,10 +357,11 @@ const bhash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imu
 const bclean=s=>s.replace(/[^\w \-]/g,"").replace(/\s+/g," ").trim().slice(0,24);
 function bme(){const u=window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user;let n=u&&(u.username||u.first_name);if(!n){try{n=localStorage.getItem("cl_name")}catch(e){}if(!n){n="Guest"+Math.floor(1000+Math.random()*9000);try{localStorage.setItem("cl_name",n)}catch(e){}}}return String(n).replace(/[^\w]/g,"").slice(0,16)||"Guest"}
 let BME=bme();if(window.CLOK&&window.CLNAME)BME=window.CLNAME;addEventListener("clok",()=>{if(window.CLNAME)BME=window.CLNAME});
-function bload(){if(!window.CLOK)return Promise.reject(new Error("members only"));if(window.supabase&&BT.cl)return Promise.resolve();return new Promise((ok,bad)=>{const go=()=>{try{BT.cl=BT.cl||supabase.createClient(SB.url,SB.key,{realtime:{params:{eventsPerSecond:8}}});ok()}catch(e){bad(e)}};if(window.supabase)return go();const e=document.createElement("script");e.src=SB.lib;e.onload=go;e.onerror=()=>bad(new Error("load"));document.head.appendChild(e)})}
+function bload(){return window.CLRECHECK().then(ok=>{if(!ok)throw new Error("members only");return bload0()})}
+function bload0(){if(window.supabase&&BT.cl)return Promise.resolve();return new Promise((ok,bad)=>{const go=()=>{try{BT.cl=BT.cl||supabase.createClient(SB.url,SB.key,{realtime:{params:{eventsPerSecond:8}}});window.CLTOKEN().then(tk=>{if(!tk)return bad(new Error("no token"));BT.cl.realtime.setAuth(tk);if(!BT.rf)BT.rf=setInterval(()=>window.CLTOKEN(true).then(n=>{if(n&&BT.cl)BT.cl.realtime.setAuth(n)}),2400000);ok()}).catch(bad)}catch(e){bad(e)}};if(window.supabase)return go();const e=document.createElement("script");e.src=SB.lib;e.onload=go;e.onerror=()=>bad(new Error("load"));document.head.appendChild(e)})}
 function bsub(ch){return new Promise((ok,bad)=>{const t=setTimeout(()=>bad(new Error("timeout")),8000);ch.subscribe(st=>{if(st==="SUBSCRIBED"){clearTimeout(t);ok()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"){clearTimeout(t);bad(new Error(st))}})})}
 function bdirList(q){const st=BT.dir?BT.dir.presenceState():{},m={};Object.values(st).forEach(a=>a.forEach(x=>{if(x&&x.b&&(!m[x.b]||x.n>m[x.b].n))m[x.b]=x}));q=(q||"").toLowerCase();return Object.values(m).filter(x=>!q||x.b.toLowerCase().includes(q)).sort((a,b)=>b.n-a.n)}
-async function bdir(){if(BT.dir)return;await bload();const ch=BT.cl.channel("conclave:dir",{config:{presence:{key:BME+"~"+BT.sid}}});ch.on("presence",{event:"sync"},()=>{if($("#bRes"))bRender();bAdvert()});await bsub(ch);BT.dir=ch}
+async function bdir(){if(BT.dir)return;await bload();const ch=BT.cl.channel("conclave:dir",{config:{private:true,presence:{key:BME+"~"+BT.sid}}});ch.on("presence",{event:"sync"},()=>{if($("#bRes"))bRender();bAdvert()});await bsub(ch);BT.dir=ch}
 function bAdvert(){if(!BT.dir)return;if(BT.ch&&BT.pub&&BT.host&&!BT.playing){BT.dir.track({b:BT.name,o:BME,n:BT.members.length})}else{try{BT.dir.untrack()}catch(e){}}}
 function bShell(h){GEN++;_rest="";G=null;$("main").innerHTML=h}
 function batchUI(tab){BT.tab=tab||BT.tab||"S";
@@ -379,7 +401,7 @@ async function bCreate(){const n=bclean($("#bCn").value),priv=$("#bCf").checked,
 async function bJoin(id,name,pub,er){
  if(BT.ch)await batchLeave(true);
  try{await bload();
-  const ch=BT.cl.channel("conclave:b:"+bhash(id),{config:{presence:{key:BME+"~"+BT.sid},broadcast:{self:true}}});
+  const ch=BT.cl.channel("conclave:b:"+bhash(id),{config:{private:true,presence:{key:BME+"~"+BT.sid},broadcast:{self:true}}});
   BT.id=id;BT.name=name;BT.pub=pub;BT.playing=false;BT.msgs=[];BT.members=[];BT.host=false;BT.ch=ch;
   ch.on("presence",{event:"sync"},bLobbyUpdate).on("broadcast",{event:"chat"},p=>{BT.msgs.push(p.payload);if(BT.msgs.length>40)BT.msgs.shift();bChat()}).on("broadcast",{event:"start"},p=>bOnStart(p.payload));
   await bsub(ch);await ch.track({n:BME,k:BME+"~"+BT.sid,t:Date.now()});
@@ -418,7 +440,7 @@ function chatLeave(){CHAT.alive=false;clearInterval(CHAT.tick);CHAT.tick=0;chatD
 async function chatJoin(){const w=Math.floor(Date.now()/CW);CHAT.win=w;await chatDrop();const m=$("#lcMsgs");if(m)m.textContent="";chatSt("Connecting…");
  try{await bload()}catch(e){chatSt("Chat unavailable");return}
  if(!CHAT.alive||w!==CHAT.win)return;
- const c=BT.cl.channel("conclave:chat:"+w,{config:{broadcast:{self:true}}});CHAT.ch=c;
+ const c=BT.cl.channel("conclave:chat:"+w,{config:{private:true,broadcast:{self:true}}});CHAT.ch=c;
  c.on("broadcast",{event:"m"},p=>{const d=p&&p.payload;if(!d||typeof d.t!=="string")return;const n=String(d.n||"Member").slice(0,24);chatAdd(n,d.t.slice(0,280),n===BME)});
  c.subscribe(s=>{if(c!==CHAT.ch)return;chatSt(s==="SUBSCRIBED"?"Live":(s==="CHANNEL_ERROR"||s==="TIMED_OUT")?"Reconnecting…":"Connecting…")})}
 function chatClock(){if(!CHAT.alive)return;const l=CW-(Date.now()%CW),e=$("#lcCt");if(e)e.textContent=Math.floor(l/60000)+":"+String(Math.floor(l%60000/1000)).padStart(2,"0");if(Math.floor(Date.now()/CW)!==CHAT.win)chatJoin()}
