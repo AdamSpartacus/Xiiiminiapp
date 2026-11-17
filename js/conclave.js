@@ -34,6 +34,8 @@ function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resol
   const res=await fetch(SB.url+"/functions/v1/conclave-token",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({initData:a.initData})});const r=await res.json();
   if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
 Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
+/* Batch gateway (conclave-batch): list/create/join/random/start/leave are all decided by the server, same as node sync and spore. */
+Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
 setInterval(()=>{if(_ok)recheck(true)},60000);
@@ -360,9 +362,10 @@ let BME=bme();if(window.CLOK&&window.CLNAME)BME=window.CLNAME;addEventListener("
 function bload(){return window.CLRECHECK().then(ok=>{if(!ok)throw new Error("members only");return bload0()})}
 function bload0(){if(window.supabase&&BT.cl)return Promise.resolve();return new Promise((ok,bad)=>{const go=()=>{try{BT.cl=BT.cl||supabase.createClient(SB.url,SB.key,{realtime:{params:{eventsPerSecond:8}}});window.CLTOKEN().then(tk=>{if(!tk)return bad(new Error("no token"));BT.cl.realtime.setAuth(tk);if(!BT.rf)BT.rf=setInterval(()=>window.CLTOKEN(true).then(n=>{if(n&&BT.cl)BT.cl.realtime.setAuth(n)}),2400000);ok()}).catch(bad)}catch(e){bad(e)}};if(window.supabase)return go();const e=document.createElement("script");e.src=SB.lib;e.onload=go;e.onerror=()=>bad(new Error("load"));document.head.appendChild(e)})}
 function bsub(ch){return new Promise((ok,bad)=>{const t=setTimeout(()=>bad(new Error("timeout")),8000);ch.subscribe(st=>{if(st==="SUBSCRIBED"){clearTimeout(t);ok()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"){clearTimeout(t);bad(new Error(st))}})})}
-function bdirList(q){const st=BT.dir?BT.dir.presenceState():{},m={};Object.values(st).forEach(a=>a.forEach(x=>{if(x&&x.b&&(!m[x.b]||x.n>m[x.b].n))m[x.b]=x}));q=(q||"").toLowerCase();return Object.values(m).filter(x=>!q||x.b.toLowerCase().includes(q)).sort((a,b)=>b.n-a.n)}
-async function bdir(){if(BT.dir)return;await bload();const ch=BT.cl.channel("conclave:dir",{config:{private:true,presence:{key:BME+"~"+BT.sid}}});ch.on("presence",{event:"sync"},()=>{if($("#bRes"))bRender();bAdvert()});await bsub(ch);BT.dir=ch}
-function bAdvert(){if(!BT.dir)return;if(BT.ch&&BT.pub&&BT.host&&!BT.playing){BT.dir.track({b:BT.name,o:BME,n:BT.members.length})}else{try{BT.dir.untrack()}catch(e){}}}
+function bdirList(q){q=(q||"").toLowerCase();return(BT.list||[]).map(x=>({b:x.batch,o:x.o||"a member",n:x.n||0,live:!!x.live,full:!!x.full})).filter(x=>!q||x.b.toLowerCase().includes(q))}
+async function bpoll(){const r=await window.CLCALL("cb_list",{q:""});if(r&&r.ok&&Array.isArray(r.batches)){BT.list=r.batches;BT.lok=true;if($("#bRes"))bRender()}}
+async function bdir(){if(BT.dir)return;if(!(await window.CLRECHECK()))throw new Error("members only");await bpoll();if(!BT.lok)throw new Error("list");if(!BT.dir)BT.dir=setInterval(bpoll,2500)}
+function bAdvert(){}
 function bShell(h){GEN++;_rest="";G=null;$("main").innerHTML=h}
 function batchUI(tab){BT.tab=tab||BT.tab||"S";
  bShell(`<button class="bk" onclick="batchLeave();menu()">‹ Back</button><p class="eb" style="text-align:left;margin:0">Batches</p><div class="wm" style="text-align:left;font-size:28px;margin:2px 0 6px;text-indent:0">CHOOSE A BATCH</div>
@@ -385,28 +388,34 @@ function batchUI(tab){BT.tab=tab||BT.tab||"S";
  bdir().then(()=>{bRender()}).catch(()=>{$("#bRs").textContent="Could not reach the batch server. Check your connection and try again."});
 }
 function bRender(){const box=$("#bRes");if(!box)return;const l=bdirList($("#bQ")?$("#bQ").value.trim():"");box.innerHTML="";
- l.forEach(x=>{const d=document.createElement("div");d.className="bli";d.innerHTML=`<div><b>${esc(x.b)}</b><small>by ${esc(x.o)} · ${x.n}/6 online</small></div>`;const b=document.createElement("button");b.type="button";b.textContent=x.n>=6?"Full":"Join";b.disabled=x.n>=6;b.onclick=()=>bJoin("p-"+x.b.toLowerCase(),x.b,true,$("#bRe"));d.appendChild(b);box.appendChild(d)});
- $("#bRs").textContent=l.length?"":(BT.dir?"No batches found. Create one.":"Connecting…")}
+ l.forEach(x=>{const d=document.createElement("div");d.className="bli";d.innerHTML=`<div><b>${esc(x.b)}</b><small>by ${esc(x.o)} · ${x.n}/6 online${x.live?" · in progress":""}</small></div>`;const b=document.createElement("button");b.type="button";const off=x.n>=6||x.live;b.textContent=x.live?"Playing":x.n>=6?"Full":"Join";b.disabled=off;b.onclick=()=>bJoin("p-"+x.b.toLowerCase(),x.b,true,$("#bRe"),"cb_join");d.appendChild(b);box.appendChild(d)});
+ $("#bRs").textContent=l.length?"":(BT.lok?"No batches found. Create one.":"Connecting…")}
 async function bRandom(){const b=$("#bRnd"),er=$("#bRe");er.textContent="";b.disabled=true;b.textContent="Finding members…";
- try{await bdir();const l=bdirList("").filter(x=>x.n<6);const pick=l.find(x=>/^Random-/.test(x.b))||l[0];
-  if(pick)await bJoin("p-"+pick.b.toLowerCase(),pick.b,true,er);else{const nm="Random-"+Math.random().toString(36).slice(2,6).toUpperCase();await bJoin("p-"+nm.toLowerCase(),nm,true,er)}}
+ try{const r=await window.CLCALL("cb_random",{});
+  if(!r||!r.ok||!r.batch)er.textContent=(r&&r.error)||"Could not find a batch. Try again.";
+  else await bJoin("p-"+r.batch.toLowerCase(),r.batch,true,er,"cb_join",r)}
  catch(e){er.textContent="Could not find a batch. Try again."}
  if(b.isConnected){b.disabled=false;b.textContent="Join random batch"}}
 async function bCreate(){const n=bclean($("#bCn").value),priv=$("#bCf").checked,k=$("#bCk").value.trim(),er=$("#bCe");
  if(n.length<3){er.textContent="Batch name needs 3+ characters.";return}
  if(priv&&k.length<4){er.textContent="Friends key needs 4+ characters.";return}er.textContent="";
  if(priv)return bJoin("f-"+n.toLowerCase()+"-"+bhash(n.toLowerCase()+"|"+k),n,false,er);
- try{await bdir();if(bdirList("").some(x=>x.b.toLowerCase()==n.toLowerCase())){er.textContent="That name is taken. Join it from Search.";return}}catch(e){er.textContent="Could not reach the batch server.";return}
- bJoin("p-"+n.toLowerCase(),n,true,er)}
-async function bJoin(id,name,pub,er){
+ return bJoin("p-"+n.toLowerCase(),n,true,er,"cb_create")}
+function bBeat(){clearInterval(BT.bt);BT.bt=setInterval(async()=>{if(!BT.ch||!BT.sn){clearInterval(BT.bt);return}const r=await window.CLCALL("cb_beat",{batch:BT.sn});if(r&&r.gone&&!BT.playing){await batchLeave(true);batchUI("S");const e=$("#bRe");if(e)e.textContent="That batch closed. Pick another."}},5000)}
+async function bJoin(id,name,pub,er,act,pre){
  if(BT.ch)await batchLeave(true);
- try{await bload();
+ let sn=pub?name:id,joined=false;
+ try{
+  const r=pre||await window.CLCALL(act||(pub?"cb_join":"cb_friends"),{batch:sn});
+  if(!r||!r.ok){if(er)er.textContent=(r&&r.error)||"Could not join the batch. Try again.";bpoll();return}
+  joined=true;if(pub&&r.batch){name=r.batch;sn=r.batch;id="p-"+r.batch.toLowerCase()}
+  await bload();
   const ch=BT.cl.channel("conclave:b:"+bhash(id),{config:{private:true,presence:{key:BME+"~"+BT.sid},broadcast:{self:true}}});
-  BT.id=id;BT.name=name;BT.pub=pub;BT.playing=false;BT.msgs=[];BT.members=[];BT.host=false;BT.ch=ch;
+  BT.id=id;BT.sn=sn;BT.name=name;BT.pub=pub;BT.playing=false;BT.msgs=[];BT.members=[];BT.host=false;BT.ch=ch;
   ch.on("presence",{event:"sync"},bLobbyUpdate).on("broadcast",{event:"chat"},p=>{BT.msgs.push(p.payload);if(BT.msgs.length>40)BT.msgs.shift();bChat()}).on("broadcast",{event:"start"},p=>bOnStart(p.payload));
   await bsub(ch);await ch.track({n:BME,k:BME+"~"+BT.sid,t:Date.now()});
-  bLobby()}
- catch(e){try{BT.ch&&BT.cl.removeChannel(BT.ch)}catch(_){}BT.ch=null;if(er)er.textContent="Could not join the batch. Try again."}}
+  bBeat();bLobby()}
+ catch(e){try{BT.ch&&BT.cl.removeChannel(BT.ch)}catch(_){}BT.ch=null;if(joined)try{window.CLCALL("cb_leave",{batch:sn})}catch(_){}if(er)er.textContent="Could not join the batch. Try again."}}
 function bLobbyUpdate(){if(!BT.ch)return;const st=BT.ch.presenceState(),m=[];Object.values(st).forEach(a=>a.forEach(x=>x&&x.n&&m.push(x)));m.sort((a,b)=>a.t-b.t||(a.k<b.k?-1:1));
  BT.members=m;BT.host=!!m.length&&m[0].k==BME+"~"+BT.sid;
  if(!BT.playing&&m.length>6&&m.findIndex(x=>x.k==BME+"~"+BT.sid)>=6){batchLeave();batchUI("S");const r=$("#bRe");if(r)r.textContent="That batch is full.";return}
@@ -423,13 +432,13 @@ function bLobby(){
  <div class="card"><div class="eb" style="text-align:left;margin:0 0 8px">Live chat</div><div class="chat" id="bMsgs"></div>
  <form class="crow" id="bCf2" autocomplete="off"><input class="bin" id="bCi" maxlength="140" placeholder="Message your batch"><button class="pri" type="submit">Send</button></form></div>`);
  $("#bCf2").addEventListener("submit",e=>{e.preventDefault();const t=$("#bCi").value.trim();if(!t||!BT.ch)return;$("#bCi").value="";BT.ch.send({type:"broadcast",event:"chat",payload:{n:BME,t}})});
- $("#bGo").onclick=()=>{if(!BT.ch||!BT.host||BT.members.length<MINP)return;BT.ch.send({type:"broadcast",event:"start",payload:{m:BT.members.slice(0,6).map(x=>({n:x.n,k:x.k}))}})};
+ $("#bGo").onclick=async()=>{if(!BT.ch||!BT.host||BT.members.length<MINP)return;try{await window.CLCALL("cb_start",{batch:BT.sn})}catch(e){}if(!BT.ch)return;BT.ch.send({type:"broadcast",event:"start",payload:{m:BT.members.slice(0,6).map(x=>({n:x.n,k:x.k}))}})};
  bLobbyUpdate();bChat()}
 function bOnStart(p){if(!BT.ch||BT.playing||!p||!Array.isArray(p.m)||p.m.length<MINP||p.m.length>6)return;const me=BME+"~"+BT.sid;if(!p.m.some(x=>x.k==me))return;
  const nm=["You",...p.m.filter(x=>x.k!=me).map(x=>x.n)];
  BT.playing=true;bAdvert();start(nm.length,nm)}
-async function batchLeave(keepDir){const ch=BT.ch;BT.ch=null;BT.host=false;BT.playing=false;BT.members=[];if(ch){try{await ch.untrack()}catch(e){}try{BT.cl.removeChannel(ch)}catch(e){}}
- if(!keepDir&&BT.dir){const d=BT.dir;BT.dir=null;try{d.untrack()}catch(e){}try{BT.cl.removeChannel(d)}catch(e){}}}
+async function batchLeave(keepDir){const ch=BT.ch,sn=BT.sn;BT.ch=null;BT.sn="";BT.host=false;BT.playing=false;BT.members=[];clearInterval(BT.bt);if(sn){try{window.CLCALL("cb_leave",{batch:sn})}catch(e){}}if(ch){try{await ch.untrack()}catch(e){}try{BT.cl.removeChannel(ch)}catch(e){}}
+ if(!keepDir&&BT.dir){clearInterval(BT.dir);BT.dir=null}}
 
 /* ===== live chat: one room per 10-minute window; it clears itself when the window ends ===== */
 var CHAT={ch:null,win:0,tick:0,last:0,alive:false};const CW=600000;
