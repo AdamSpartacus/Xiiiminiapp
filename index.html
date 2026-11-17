@@ -751,6 +751,8 @@ body[data-view=conclave] #cats .msub{display:flex}
 body.ready[data-view=conclave] #menubtn{display:flex}
 /* no countdown bar on the conclave page: it overlapped the Enter the Conclave button */
 html body[data-view=conclave] #tabs{display:none!important}
+/* <main> is pointer-events:none, so the conclave frame inherited it and ignored every tap and drag */
+html body .view[data-view=conclave],#clvWrap,#clvFrame{pointer-events:auto}
 </style>
 </head>
 <body>
