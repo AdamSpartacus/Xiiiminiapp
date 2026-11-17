@@ -365,10 +365,12 @@ setInterval(()=>{if(!document.hidden&&(PL||entered))plCheck()},10000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered))plCheck()});
 
 const meP=api.me().catch(()=>({status:"none"}));
-function go(n){if(n===cur)return;const nx=$('.view[data-view="'+n+'"]'),pv=$('.view[data-view="'+cur+'"]');
+let clvF=null;
+function clvOpen(){const w=document.getElementById("clvWrap");if(!w||clvF)return;clvF=document.createElement("iframe");clvF.id="clvFrame";clvF.title="Conclave";clvF.setAttribute("allow","fullscreen; clipboard-write");clvF.src="conclave/index.html";w.appendChild(clvF)}
+function go(n){if(n===cur)return;if(n==="conclave"&&!document.body.classList.contains("member"))return;const nx=$('.view[data-view="'+n+'"]'),pv=$('.view[data-view="'+cur+'"]');
  pv.classList.add("out");pv.classList.remove("on");setTimeout(()=>pv.classList.remove("out"),520);
  nx.classList.add("on");nx.scrollTop=0;cur=n;document.body.dataset.view=n;if(n!=="intro"&&V.pyramid&&V.pyramid.stop)V.pyramid.stop();V.tg.haptic("light");V.card&&(V.card.view(n==="done"),(n==="letter"||n==="form")&&V.card.warm());
- document.querySelectorAll("#cats button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.go===n)));document.body.classList.remove("menu-open");if(n==="merits")loadMerits();if(n==="web")webLoad();if(n==="genesis")glStart();else glStop();if(V.spore){if(n==="spore")V.spore.enter();else V.spore.stop()}try{V.tools&&V.tools.onView(n)}catch(e){}try{const bb=V.tg.app&&V.tg.app.BackButton;if(bb)n==="founders"||n==="lock"?bb.show():bb.hide()}catch(e){}}
+ document.querySelectorAll("#cats button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.go===n)));document.body.classList.remove("menu-open");if(n==="merits")loadMerits();if(n==="web")webLoad();if(n==="genesis")glStart();else glStop();if(V.spore){if(n==="spore")V.spore.enter();else V.spore.stop()}if(n==="conclave")clvOpen();try{V.tools&&V.tools.onView(n)}catch(e){}try{const bb=V.tg.app&&V.tg.app.BackButton;if(bb)n==="founders"||n==="lock"?bb.show():bb.hide()}catch(e){}}
 let MEM=null,justDec=false;
 const MASK="VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022";
 /* new members see the code only after one node sync; everyone else sees it right away */
@@ -382,7 +384,7 @@ function startSync(mode,kind){V.sync.start(mode,kind);go("sync")}
 function show(m){MEM=m;if(typeof m.locked!=="boolean"&&V.gate.isNew(m)&&!V.gate.isDecrypted())V.gate.markPending();V.sync.setUser(m.username||"");if(typeof m.web==="boolean")paintWeb(m.web);paintCode();$("#dn").textContent=m.name;$("#dc").textContent=m.country;$("#du").textContent=m.username?"@"+m.username:"Not set";$("#uclaim").style.display=m.username?"none":"block"}
 async function enter(){if(entered)return;entered=true;const r=await meP;await V.gate.ready;if(r.status==="locked"){showLock(r);return}if(r.status==="error"){if(r.error)$("#dmsg").textContent=r.error;go("denied");return}if(r.status==="denied"||!r.status){document.body.classList.add("locked");if(r.error)$("#dmsg").textContent=r.error;go("denied");return}document.body.classList.add("ready");
  if(V.services.isOwner(r))document.body.classList.add("owner");
- if(r.status==="banned")go("banned");else if(r.status==="member"&&r.member){show(r.member);go("done")}else go("letter")}
+ if(r.status==="banned")go("banned");else if(r.status==="member"&&r.member){document.body.classList.add("member");show(r.member);go("done")}else go("letter")}
 setTimeout(enter,4800);
 addEventListener("click",()=>{if(cur==="intro"&&performance.now()>1800)enter()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)go(b.dataset.go)});
