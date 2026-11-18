@@ -13,17 +13,22 @@ const LIMIT=5,POLL=4000,FRESH=15000;
 const body=document.body;
 
 /* ---------------- red palette + notice ---------------- */
-/* Two full-screen layers blend over the portal: one multiplies everything toward red, one lifts the blacks to dark red.
-   Nothing in the portal itself is changed, so removing the layers restores the normal palette instantly. */
-let glow=null,glow2=null,note=null,noteT=0;
-const HEAD_ON="#1a0309",HEAD_OFF="#000000";
+/* While a red card is in your room, <html> gets the class rc-red (the dark red palette lives in the #rcRedPalette style in index.html).
+   The Conclave game runs inside its own frame, so the same colour variables are injected there. Removing everything restores the normal palette. */
+let note=null,noteT=0;
+const HEAD_ON="#0c0205",HEAD_OFF="#000000";
+const FRAME_CSS=':root{--text:#f4e6e8;--fg:#f4e6e8;--mute:#d8b4b9;--mut:#d8b4b9;--dim:#ee4455;--line:rgba(255,52,72,.34);--accent:#ff4d5e;--gold:#ff4d5e;--gold2:rgba(255,70,90,.5);--panel:rgba(255,30,50,.05);--tile:rgba(255,30,50,.11);--tile2:rgba(255,30,50,.03);--glass:linear-gradient(145deg,rgba(255,30,50,.14),rgba(110,0,14,.05));--bgfx:radial-gradient(640px 460px at 82% -4%,rgba(150,0,20,.5),transparent 70%),radial-gradient(800px 480px at 50% -12%,#2a0309,#000 62%)}';
+function frame(on){
+ try{const f=document.getElementById("clvFrame"),d=f&&f.contentDocument;if(!d||!d.head)return;
+  let st=d.getElementById("rcFrameRed");
+  if(on&&!st){st=d.createElement("style");st.id="rcFrameRed";st.textContent=FRAME_CSS;d.head.appendChild(st)}
+  else if(!on&&st)st.remove()}catch(e){}}
 function mount(){
- if(glow)return;
- glow2=document.createElement("div");glow2.id="rcGlow2";glow2.setAttribute("aria-hidden","true");
- glow=document.createElement("div");glow.id="rcGlow";glow.setAttribute("aria-hidden","true");
+ if(note)return;
  note=document.createElement("div");note.id="rcNote";note.setAttribute("role","status");note.setAttribute("aria-live","assertive");
- body.appendChild(glow);body.appendChild(glow2);body.appendChild(note)}
-function setGlow(on){mount();glow.classList.toggle("on",!!on);glow2.classList.toggle("on",!!on);
+ body.appendChild(note)}
+function setGlow(on){mount();on=!!on;
+ document.documentElement.classList.toggle("rc-red",on);frame(on);
  try{const a=V.tg.app;if(a){a.setHeaderColor&&a.setHeaderColor(on?HEAD_ON:HEAD_OFF);a.setBackgroundColor&&a.setBackgroundColor(on?HEAD_ON:HEAD_OFF);a.setBottomBarColor&&a.setBottomBarColor(on?HEAD_ON:HEAD_OFF)}}catch(e){}}
 function announce(){
  mount();note.textContent="Red Card Joined";note.classList.remove("on");void note.offsetWidth;note.classList.add("on");
