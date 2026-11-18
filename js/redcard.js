@@ -1,6 +1,6 @@
 try{
 /* Red Cards.
-   The founder chooses up to 5 members as red cards ("Voting setup" page, section "Red cards").
+   The founder chooses up to 5 members as red cards (founder-only "Red cards" tab in the sidebar Founder section).
    While you are inside any multiplayer place (Node Sync, Spore or a Conclave batch) this file pings the backend
    (edge function illuminati-redcard) with the room you are in. When a red card member is in that same room the
    whole portal glows red from the edges and a "Red Card Joined" notice appears. Outside multiplayer nothing happens.
@@ -51,41 +51,42 @@ V.red={room:(kind,batch)=>{batch?seen(kind,batch):clear()},clear};
 ["sync_leave","rec_sync_leave","spore_leave","sync_done","rec_sync_done"].forEach(name=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(){try{clear()}catch(e){}return f.apply(this,arguments)}});
-/* ---------------- founder page: choose the red cards ---------------- */
-let FM=[],SEL=new Set(),loaded=false,mounted=false;
-function build(){
- if(mounted)return true;const app=$("vsApp");if(!app)return false;mounted=true;
- const d=document.createElement("div");d.id="rcApp";
- d.innerHTML='<p class="eyebrow" style="margin-top:28px">Red cards</p>'
- +'<p class="gl-p mi-lead">Choose up to '+LIMIT+' members as red cards. When a red card joins Node Sync, Spore or a Conclave batch, everyone in that room sees the whole portal glow red and a &ldquo;Red Card Joined&rdquo; notice. Nothing changes anywhere else.</p>'
- +'<p class="vt-sel" id="rcCount"></p><div class="lchips" id="rcChips"></div>'
- +'<input class="lsearch" id="rcQ" type="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search members" aria-label="Search members for red cards">'
- +'<div id="rcList"></div><button class="btn solid" id="rcSave" type="button">Save red cards</button><p class="note" id="rcMsg" role="status"></p>';
- app.appendChild(d);
+/* ---------------- founder page: choose the red cards (own tab, founder only) ---------------- */
+let FM=[],SEL=new Set(),loaded=false,wired=false;
+const gate=h=>{const g=$("rcGate");g.hidden=false;g.innerHTML=h;$("rcApp").hidden=true};
+const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const nm=m=>m.username?"@"+m.username:(m.name||"Member");
+const fname=id=>{const m=FM.find(x=>x.uid===id);return m?nm(m):"Former member"};
+function wire(){
+ if(wired)return;wired=true;
  $("rcQ").oninput=draw;
  $("rcChips").onclick=e=>{const b=e.target.closest("[data-rx]");if(!b)return;SEL.delete(b.dataset.rx);hap("light");draw()};
  $("rcList").onclick=e=>{const b=e.target.closest("[data-ra]");if(!b||b.disabled)return;const id=b.dataset.ra;if(SEL.has(id))SEL.delete(id);else if(SEL.size<LIMIT)SEL.add(id);hap("light");draw()};
- $("rcSave").onclick=save;return true}
-const nm=m=>m.username?"@"+m.username:(m.name||"Member");
-const fname=id=>{const m=FM.find(x=>x.uid===id);return m?nm(m):"Former member"};
+ $("rcSave").onclick=save}
 function draw(){
- if(!mounted)return;const q=$("rcQ").value.trim().toLowerCase(),full=SEL.size>=LIMIT;
+ const q=$("rcQ").value.trim().toLowerCase(),full=SEL.size>=LIMIT;
  $("rcCount").textContent=SEL.size+" of "+LIMIT+" selected";
  $("rcChips").innerHTML=SEL.size?[...SEL].map(id=>'<button type="button" class="lchip" data-rx="'+esc(id)+'" aria-label="Remove '+esc(fname(id))+'">'+esc(fname(id))+' \u00d7</button>').join(""):'<p class="note" style="margin:0;text-align:left">No red cards yet.</p>';
  $("rcList").innerHTML=FM.filter(m=>!q||[m.username,m.name].join(" ").toLowerCase().includes(q)).slice(0,60).map(m=>{
   const on=SEL.has(m.uid);
-  return '<div class="lrow"><div class="lwho"><b>'+esc(nm(m))+'</b><small>'+esc(m.name||"")+'</small></div><button type="button" class="lbt'+(on?" on":"")+'" data-ra="'+esc(m.uid)+'"'+(!on&&full?' disabled style="opacity:.4"':"")+'>'+(on?"Red card":"Add")+'</button></div>'}).join("")}
-async function load(){
- if(!build())return;const msg=$("rcMsg");msg.textContent="Loading red cards";let a,b;
+  return '<div class="lrow"><div class="lwho"><b>'+esc(nm(m))+'</b><small>'+esc(m.name||"")+'</small></div><button type="button" class="lbt'+(on?" on":"")+'" data-ra="'+esc(m.uid)+'"'+(!on&&full?' disabled style="opacity:.4"':"")+'>'+(on?"Red card":"Add")+'</button></div>'}).join("")||'<p class="note">No members found.</p>'}
+async function enter(){
+ wire();
+ if(!body.classList.contains("owner")){gate('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p>This section is only available to the founder.</p>');return}
+ gate('<div class="mi-sp"></div><p>Verifying founder access</p>');let a,b;
  try{[a,b]=await Promise.all([api.vote_founder_get(),api.redcard_get()])}catch(e){a=b=null}
- if(a&&a.ok&&b&&b.ok){FM=Array.isArray(a.members)?a.members:[];SEL=new Set((Array.isArray(b.cards)?b.cards:[]).map(String).slice(0,LIMIT));loaded=true;msg.textContent="";$("rcSave").disabled=false;draw();return}
- loaded=false;$("rcSave").disabled=true;msg.textContent=(b&&b.error)||(a&&a.error)||"Red cards could not be loaded. The red card backend may not be set up yet."}
+ if(a&&a.ok&&b&&b.ok){FM=Array.isArray(a.members)?a.members:[];SEL=new Set((Array.isArray(b.cards)?b.cards:[]).map(String).slice(0,LIMIT));loaded=true;
+  $("rcGate").hidden=true;$("rcApp").hidden=false;$("rcQ").value="";$("rcMsg").textContent="";$("rcSave").disabled=false;draw();return}
+ loaded=false;gate('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p></p>');
+ $("rcGate").querySelector("p").textContent=(b&&b.error)||(a&&a.error)||"We could not load this page. Check your connection and try again."}
+function leave(){loaded=false;SEL=new Set();FM=[];$("rcGate").hidden=false;$("rcApp").hidden=true}
 async function save(){
  if(!loaded)return;const btn=$("rcSave"),msg=$("rcMsg");btn.disabled=true;msg.textContent="";let r;
  try{r=await api.redcard_set({cards:[...SEL].slice(0,LIMIT)})}catch(e){r=null}btn.disabled=false;
  if(r&&r.ok){SEL=new Set((Array.isArray(r.cards)?r.cards:[]).map(String).slice(0,LIMIT));draw();msg.textContent="Saved. "+SEL.size+" red card"+(SEL.size===1?"":"s")+" active.";hap("medium")}
  else msg.textContent=(r&&r.error)||"Could not save. Try again."}
-const onView=()=>{if(body.dataset.view==="voteset")setTimeout(load,60);else loaded=false};
-new MutationObserver(onView).observe(body,{attributes:true,attributeFilter:["data-view"]});onView();
+/* sidebar entry (Founder section, owner only) opens the view through a hidden proxy so the normal view switch runs */
+const mr=$("mred");if(mr)mr.onclick=()=>{if(body.classList.contains("owner")){const g=$("redGoSet");if(g)g.click()}};
+if(V.tools)V.tools.hooks.redset={enter,leave};
 })(window.ILLUMINATI);
 }catch(e){console.error(e)}
