@@ -737,6 +737,16 @@ html[data-tg] #fsb{display:none}
 <script defer src="js/veil.js"></script>
 <script defer src="js/archive.js"></script>
 <script defer src="js/vote.js"></script>
+<script defer src="js/redcard.js"></script>
+<style>/* Red cards: red edge glow over the whole portal while a red card member is in your multiplayer room (Node Sync, Spore, Conclave batch) */
+#rcGlow{position:fixed;inset:0;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .9s ease;box-shadow:inset 0 0 34px 6px rgba(255,26,48,.85),inset 0 0 100px 22px rgba(230,0,30,.45),inset 0 0 190px 36px rgba(200,0,24,.22)}
+#rcGlow.on{opacity:1;animation:rcPulse 2.6s ease-in-out infinite}
+@keyframes rcPulse{0%,100%{filter:brightness(.85)}50%{filter:brightness(1.35)}}
+#rcNote{position:fixed;left:50%;top:calc(var(--sat,0px) + 14px);z-index:2147483001;pointer-events:none;transform:translate(-50%,-140%);opacity:0;padding:11px 22px;border-radius:999px;background:rgba(40,0,6,.92);border:1px solid rgba(255,60,80,.9);color:#ffd9de;font:600 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;box-shadow:0 0 28px rgba(255,26,48,.75),0 0 70px rgba(255,26,48,.35)}
+#rcNote.on{animation:rcNote 3.2s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rcNote{0%{opacity:0;transform:translate(-50%,-140%)}12%,82%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-140%)}}
+@media (prefers-reduced-motion:reduce){#rcGlow.on{animation:none}#rcNote.on{animation:none;opacity:1;transform:translate(-50%,0)}}
+</style>
 
 <script defer src="js/loader.js"></script>
 <style>/* Conclave: members-only game in the sidebar. The game is embedded in this file (<template id=clvTpl> + js/conclave.js) and verifies membership itself. */
