@@ -35,7 +35,7 @@ function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resol
   if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
 Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
 /* Batch gateway (conclave-batch): list/create/join/random/start/leave are all decided by the server, same as node sync and spore. */
-Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
+Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{const R=parent.ILLUMINATI&&parent.ILLUMINATI.red;if(R){if(action==="cb_leave")R.clear();else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)R.room("conclave",data.batch)}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
 setInterval(()=>{if(_ok)recheck(true)},60000);
