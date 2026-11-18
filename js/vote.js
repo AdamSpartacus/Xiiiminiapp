@@ -11,6 +11,17 @@ const toast=t=>{const e=$("miToast");if(!e)return;e.textContent=t;e.classList.ad
 const body=document.body,active=()=>body.dataset.view==="vote";
 const SP='<div class="mi-sp"></div>',LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const PILL={open:"Open",passed:"Passed",failed:"Failed",revision:"Revision",lost:"Not chosen"};
+/* Server data is normalised once on arrival: numbers are forced to numbers, ids to text and status to a known word, so nothing odd can reach the markup below (all free text is escaped where it is shown). */
+const num=x=>{x=+x;return isFinite(x)?x:0};
+function clean(r){const st=r.settings||{};r.settings={min_part:num(st.min_part),pass_pct:num(st.pass_pct),fail_pct:num(st.fail_pct)};
+ r.electorate=num(r.electorate);r.open_mine=num(r.open_mine);r.pending=num(r.pending);r.now=num(r.now);
+ r.proposals=(Array.isArray(r.proposals)?r.proposals:[]).filter(p=>p&&typeof p==="object"&&Object.prototype.hasOwnProperty.call(PILL,p.status)).map(p=>{
+  ["yes","no","turnout","eligible","min_part","pass_pct","round","closes"].forEach(k=>p[k]=num(p[k]));
+  p.id=String(p.id==null?"":p.id);p.grp=String(p.grp==null?"":p.grp);p.title=String(p.title==null?"":p.title);p.body=String(p.body==null?"":p.body);p.author=String(p.author==null?"":p.author);
+  if(p.closed!=null&&typeof p.closed!=="number"){const t=Date.parse(p.closed);p.closed=isFinite(t)?t:0}
+  return p});
+ r.proposers=(Array.isArray(r.proposers)?r.proposers:[]).filter(x=>x&&typeof x==="object").map(x=>({label:String(x.label==null?"":x.label),you:!!x.you}));
+ return r}
 const pc=(a,b)=>b>0?+(a*100/b).toFixed(1):0;
 const pl=(n,w)=>n+" "+w+(n===1?"":"s");
 let S=null,skew=0,busy=false,form=null,timer=0;const more=new Set();
@@ -23,7 +34,7 @@ function gate(html){const g=$("vtGate");g.hidden=false;g.innerHTML=html;$("vtApp
 function errGate(m){gate('<div class="mi-gi">'+LOCK+'</div><h3>Voting unavailable</h3><p></p><button class="btn" id="vtRetry" type="button">Try again</button>');$("vtGate").querySelector("p").textContent=m;$("vtRetry").onclick=()=>{gate(SP+"<p>Loading the votes</p>");load(false)}}
 async function load(silent){
  if(busy)return;busy=true;let r;try{r=await api.vote_state()}catch(e){r=null}busy=false;
- if(r&&r.ok){S=r;skew=(+r.now||Date.now())-Date.now();badge(r.pending);if(active())paint();return}
+ if(r&&r.ok){S=clean(r);skew=(+r.now||Date.now())-Date.now();badge(r.pending);if(active())paint();return}
  if(r&&r.status==="locked")return;
  if(!S&&active())errGate((r&&r.error)||"Could not load the votes. Check your connection and try again.");
  else if(!silent)toast((r&&r.error)||"Could not refresh the votes.")}
@@ -46,17 +57,17 @@ function acts(p,contest){let a="";
  if(p.status==="open"){
   if(S.member){
    if(p.can_vote){
-    if(contest){const on=p.my==="yes";a+='<button class="lbt'+(on?" on":"")+'" type="button" data-vt="cast" data-id="'+p.id+'" data-c="yes" aria-pressed="'+on+'">'+(on?"Your pick":"Back this request")+'</button>'}
-    else a+=["yes","no"].map(c=>'<button class="lbt'+(p.my===c?" on":"")+'" type="button" data-vt="cast" data-id="'+p.id+'" data-c="'+c+'" aria-pressed="'+(p.my===c)+'">'+(c==="yes"?"Support":"Oppose")+'</button>').join("");
+    if(contest){const on=p.my==="yes";a+='<button class="lbt'+(on?" on":"")+'" type="button" data-vt="cast" data-id="'+esc(p.id)+'" data-c="yes" aria-pressed="'+on+'">'+(on?"Your pick":"Back this request")+'</button>'}
+    else a+=["yes","no"].map(c=>'<button class="lbt'+(p.my===c?" on":"")+'" type="button" data-vt="cast" data-id="'+esc(p.id)+'" data-c="'+c+'" aria-pressed="'+(p.my===c)+'">'+(c==="yes"?"Support":"Oppose")+'</button>').join("");
    }else a+='<p class="vt-meta" style="flex-basis:100%;margin:0">You joined after this request opened, so you cannot vote on it.</p>'}
-  if(S.proposer&&!p.mine&&!p.rival&&S.open_mine<2)a+='<button class="lbt" type="button" data-vt="counter" data-id="'+p.id+'" style="flex-basis:100%">Raise a competing request</button>'}
- if(p.status==="revision"&&p.mine&&S.proposer&&S.open_mine<2)a+='<button class="lbt on" type="button" data-vt="revise" data-id="'+p.id+'" style="flex-basis:100%">Revise and resubmit</button>';
- if((p.status==="open"||p.status==="revision")&&((p.mine&&p.status==="open"&&p.turnout===0)||S.owner))a+='<button class="lbt" type="button" data-vt="withdraw" data-id="'+p.id+'" style="flex-basis:100%">Withdraw</button>';
+  if(S.proposer&&!p.mine&&!p.rival&&S.open_mine<2)a+='<button class="lbt" type="button" data-vt="counter" data-id="'+esc(p.id)+'" style="flex-basis:100%">Raise a competing request</button>'}
+ if(p.status==="revision"&&p.mine&&S.proposer&&S.open_mine<2)a+='<button class="lbt on" type="button" data-vt="revise" data-id="'+esc(p.id)+'" style="flex-basis:100%">Revise and resubmit</button>';
+ if((p.status==="open"||p.status==="revision")&&((p.mine&&p.status==="open"&&p.turnout===0)||S.owner))a+='<button class="lbt" type="button" data-vt="withdraw" data-id="'+esc(p.id)+'" style="flex-basis:100%">Withdraw</button>';
  return a?'<div class="vt-act">'+a+'</div>':""}
 function card(p,contest,rv){
  const ex=more.has(p.id),long=p.body.length>240||p.body.split("\n").length>4,open=p.status==="open";
  let h='<article class="vt-card'+(ex?" x":"")+'"><div class="vt-top"><span class="vt-pill '+p.status+'">'+PILL[p.status]+'</span><span class="vt-who">'+esc(p.author)+(p.round>1?" \u00b7 Round "+p.round:"")+'</span></div>'
-  +'<h3 class="vt-t">'+esc(p.title)+'</h3><p class="vt-body">'+esc(p.body)+'</p>'+(long?'<button class="vt-more" type="button" data-vt="more" data-id="'+p.id+'">'+(ex?"Show less":"Read more")+'</button>':"")
+  +'<h3 class="vt-t">'+esc(p.title)+'</h3><p class="vt-body">'+esc(p.body)+'</p>'+(long?'<button class="vt-more" type="button" data-vt="more" data-id="'+esc(p.id)+'">'+(ex?"Show less":"Read more")+'</button>':"")
   +meter(p,contest);
  if(!contest)h+='<p class="vt-meta">'+turnoutLine(p)+(open?" \u00b7 "+left(p.closes-now()):"")+'</p>';
  if(!open)h+='<p class="vt-out">'+esc(outcome(p,rv))+'</p>'+(p.closed?'<p class="vt-meta">Closed '+new Date(p.closed).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})+'</p>':"");

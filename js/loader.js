@@ -1,6 +1,8 @@
 /* Loads the 3D data (binary + JSON) in parallel, builds window.ILLUMINATI_MODEL, then loads the 3D scripts. */
 (function () {
-  var M = window.__MODEL__;
+  var M = { json: "assets/model.e0f63614.json", bin: "assets/pyramid.0334b620.bin" };
+  /* the fonts stylesheet is loaded with media=print so it never blocks first paint; switch it on here (an inline onload would need an inline-script allowance) */
+  Array.prototype.forEach.call(document.querySelectorAll('link[rel="stylesheet"][media="print"]'), function (k) { k.media = 'all'; });
   function get(url, type, tries) {
     return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r[type](); })
       .catch(function (e) { if (tries > 0) return get(url, type, tries - 1); throw e; });
