@@ -146,15 +146,47 @@ async function pulseOnce(){
   if(!r.ok){if(r.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
   if(+r.need>0&&+r.need!==CFG.NEED){const was=CFG.NEED;CFG.NEED=+r.need;paintNeed();rcPaint();if(CFG.NEED<was&&KIND!=="recover")sys("A red card used its power. Nodes needed is now "+CFG.NEED+".")}
   if(r.codes)Object.assign(CODES,r.codes);
-  (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;hotAt=Date.now();
-    const mine=m.u===ME,tx=String(m.t||"").slice(0,200);
-    if(mine){const i=cq.findIndex(p=>p.n===nrm(tx));if(i>=0){cq[i].el.classList.remove("pend");cq.splice(i,1);return}meN++}
-    line(String(m.u||"?").slice(0,21),tx,mine)}});
+  (Array.isArray(r.chat)?r.chat:[]).forEach(m=>addChat(m,true));
+  if(typeof r.rt==="string"&&/^ems-[0-9a-f]{24}$/.test(r.rt))rtOpen(r.rt);
   if(r.won)return win(r);
   online=+r.online||0;
   const was=active;active=online>=CFG.NEED;
   if(!active&&(was||cur!==null)){cur=null;waiting(WAIT)}
   $("nsOn").textContent=`nodes online: ${online}/${CFG.NEED}`+(online<CFG.NEED?" \u00b7 awaiting others":"")}
+/* one place that shows a chat line, whether it came from the heartbeat or from Realtime (each id is shown once) */
+let seenChat=new Set();
+function addChat(m,fromPing){
+  if(!m||!(m.id>0)||seenChat.has(m.id))return;seenChat.add(m.id);
+  if(fromPing&&m.id>lastChat)lastChat=m.id;hotAt=Date.now();
+  const mine=m.u===ME,tx=String(m.t||"").slice(0,200);
+  if(mine){const i=cq.findIndex(p=>p.n===nrm(tx));if(i>=0){cq[i].el.classList.remove("pend");cq.splice(i,1);return}meN++}
+  line(String(m.u||"?").slice(0,21),tx,mine)}
+/* ---------- Supabase Realtime: chat lines, joins, leaves and the win are pushed the moment they happen ----------
+   The channel name is secret per batch and is only handed to verified members (in the heartbeat reply). The database broadcasts to it.
+   Realtime only delivers; every rule (who is online, who won) is still decided by the server. The heartbeat keeps running as the fallback. */
+const RT={ws:null,name:"",ref:0,hb:null,retry:0,ok:false,timer:null,poke:0};
+function rtSend(ws,topic,event,payload){try{ws.send(JSON.stringify({topic,event,payload,ref:String(++RT.ref)}))}catch(e){}}
+function rtPoke(){if(RT.poke||!BATCH||decoded)return;RT.poke=setTimeout(()=>{RT.poke=0;if(BATCH&&!decoded)pulse(true)},Math.floor(Math.random()*250))}
+function rtConnect(){
+  if(!RT.name||!BATCH||decoded||typeof WebSocket!=="function")return;
+  let ws;try{ws=new WebSocket(PROJECT.replace(/^http/,"ws")+"/realtime/v1/websocket?apikey="+encodeURIComponent(KEY)+"&vsn=1.0.0")}catch(e){return}
+  RT.ws=ws;const topic="realtime:"+RT.name;
+  ws.onopen=()=>{
+    rtSend(ws,topic,"phx_join",{config:{broadcast:{self:false,ack:false},presence:{key:""},postgres_changes:[],private:false},access_token:KEY});
+    clearInterval(RT.hb);RT.hb=setInterval(()=>rtSend(ws,"phoenix","heartbeat",{}),25000)};
+  ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(!m||m.topic!==topic)return;
+    if(m.event==="phx_reply"){if(m.payload&&m.payload.status==="ok"){RT.ok=true;RT.retry=0;pulse(true)}else{try{ws.close()}catch(e){}}}
+    else if(m.event==="phx_error"){try{ws.close()}catch(e){}}
+    else if(m.event==="broadcast"&&m.payload){const e=m.payload.event,p=m.payload.payload;
+      if(e==="chat"&&p&&BATCH&&!decoded)addChat({id:+p.id,u:p.u,t:p.t},false);
+      else if(e==="poke")rtPoke()}};
+  ws.onclose=()=>{clearInterval(RT.hb);if(RT.ws!==ws)return;RT.ws=null;RT.ok=false;
+    if(RT.name&&BATCH&&!decoded){RT.retry++;clearTimeout(RT.timer);RT.timer=setTimeout(rtConnect,Math.min(5000,400*RT.retry))}};
+  ws.onerror=()=>{try{ws.close()}catch(e){}}}
+function rtOpen(name){if(RT.name===name&&RT.ws)return;rtClose();RT.name=name;RT.retry=0;rtConnect()}
+function rtClose(){RT.name="";RT.ok=false;clearTimeout(RT.timer);clearTimeout(RT.poke);RT.poke=0;clearInterval(RT.hb);const ws=RT.ws;RT.ws=null;if(ws){ws.onclose=ws.onmessage=ws.onerror=null;try{ws.close()}catch(e){}}}
+document.addEventListener("visibilitychange",()=>{if(document.hidden||!BATCH||decoded)return;if(RT.name&&!RT.ws)rtConnect();pulse(true)});
 /* ---------- red card power: a red card may spend 20 merits to lower the nodes needed by 5, only in syncs that need more than 10 ---------- */
 const RC_COST=20,RC_CUT=5,RC_MIN=10;let rcOK=false,rcBusy=false;
 function rcPaint(){
@@ -197,12 +229,12 @@ $("nsCi").addEventListener("input",()=>{hotAt=Date.now()});$("nsCi").addEventLis
 /* ---------- lifecycle ---------- */
 async function join(b){
   BATCH=b.slice(0,60);const mine=BATCH,label=b.replace(/^f-(.*)-[a-z0-9]+$/,"$1 (friends)");
-  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";
+  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";rtClose();seenChat=new Set();
   $("nsOn").textContent="nodes online: 0/"+CFG.NEED+" \u00b7 awaiting others";
   show("nsGame");waiting(WAIT);rcOK=false;rcBusy=false;rcPaint();
   await syncClock();if(BATCH!==mine)return;
-  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,30000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
-function stopGame(){timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
+  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=!RT.ok&&Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,30000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
+function stopGame(){rtClose();timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
 /* offline: stop heartbeats, tell the server (it removes an empty random batch itself) */
 function goOffline(){
   const b=BATCH;if(!b)return;
