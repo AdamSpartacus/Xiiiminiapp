@@ -131,7 +131,14 @@ function tick(){
   else if(r!==cur){const prev=cur,was=armed;cur=r;armed=true;newPuzzle();setSt("Rebuild your code and lock it in.");if(was)setTimeout(()=>judge(prev),CFG.GRACE)}
   $("nsBarI").style.width=((sn%R)/R*100)+"%";$("nsT").textContent=((R-sn%R)/1000).toFixed(1)}
 /* heartbeat: tells the server this node is online, and brings back the online count, this node's codes, new chat lines and the win */
-async function pulse(){
+let cq=[],again=false,hotAt=0,meN=0;
+const nrm=s=>String(s==null?"":s).replace(/\s+/g," ").trim().slice(0,200);
+/* pulse(): one heartbeat at a time. pulse(true) = "run one right after the one in flight" (used after sending a chat line) */
+async function pulse(force){
+  if(busy){if(force)again=true;return}
+  await pulseOnce();
+  if(again&&BATCH){again=false;pulse()}else again=false}
+async function pulseOnce(){
   const b=BATCH;if(!b||busy)return;busy=true;
   let r;try{r=await call("sync_ping",{batch:b,after:lastChat})}catch(e){r=null}
   busy=false;
@@ -139,7 +146,10 @@ async function pulse(){
   if(!r.ok){if(r.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
   if(KIND==="recover"&&+r.need>0&&+r.need!==CFG.NEED){CFG.NEED=+r.need;paintNeed()}
   if(r.codes)Object.assign(CODES,r.codes);
-  (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;line(String(m.u||"?").slice(0,21),String(m.t||"").slice(0,200),m.u===ME)}});
+  (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;hotAt=Date.now();
+    const mine=m.u===ME,tx=String(m.t||"").slice(0,200);
+    if(mine){const i=cq.findIndex(p=>p.n===nrm(tx));if(i>=0){cq[i].el.classList.remove("pend");cq.splice(i,1);return}meN++}
+    line(String(m.u||"?").slice(0,21),tx,mine)}});
   if(r.won)return win(r);
   online=+r.online||0;
   const was=active;active=online>=CFG.NEED;
@@ -149,21 +159,25 @@ async function pulse(){
 function line(u,t,me){
   const d=document.createElement("div");d.className="nsm"+(me?" me":"");
   const b=document.createElement("b");b.textContent=u;d.appendChild(b);d.appendChild(document.createTextNode(t));
-  $("nsMsgs").appendChild(d);$("nsMsgs").scrollTop=1e9}
+  $("nsMsgs").appendChild(d);$("nsMsgs").scrollTop=1e9;return d}
 function sys(t){const d=document.createElement("div");d.className="nsm sys";d.textContent=t;$("nsMsgs").appendChild(d)}
-function chatEpoch(sn){const e=Math.floor(sn/CFG.CYCLE);if(epoch!==null&&e!==epoch){$("nsMsgs").textContent="";sys("Chat reset. Previous messages are gone.")}epoch=e}
+function chatEpoch(sn){const e=Math.floor(sn/CFG.CYCLE);if(epoch!==null&&e!==epoch){$("nsMsgs").textContent="";cq=[];sys("Chat reset. Previous messages are gone.")}epoch=e}
 $("nsCf").addEventListener("submit",async e=>{
   e.preventDefault();const t=$("nsCi").value.trim();if(!t||!BATCH)return;$("nsCi").value="";
-  let r;try{r=await call("sync_chat",{batch:BATCH,text:t})}catch(x){r=null}
-  if(!r||!r.ok)sys((r&&r.error)||"Message not sent.");else pulse()});
+  const b=BATCH,el=line(ME,t.slice(0,200),true),p={n:nrm(t),el,mc:meN};el.classList.add("pend");cq.push(p);hotAt=Date.now();
+  const fin=()=>{const i=cq.indexOf(p);if(i<0)return;cq.splice(i,1);if(meN>p.mc)el.remove();else el.classList.remove("pend")};
+  let r;try{r=await call("sync_chat",{batch:b,text:t})}catch(x){r=null}
+  if(!r||!r.ok){const i=cq.indexOf(p);if(i>=0)cq.splice(i,1);el.remove();if(b===BATCH)sys((r&&r.error)||"Message not sent.");return}
+  pulse(true);setTimeout(()=>pulse(true),700);setTimeout(fin,6000)});
+$("nsCi").addEventListener("input",()=>{hotAt=Date.now()});$("nsCi").addEventListener("focus",()=>{hotAt=Date.now()});
 /* ---------- lifecycle ---------- */
 async function join(b){
   BATCH=b.slice(0,60);const mine=BATCH,label=b.replace(/^f-(.*)-[a-z0-9]+$/,"$1 (friends)");
-  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;wonRole="";
+  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";
   $("nsOn").textContent="nodes online: 0/"+CFG.NEED+" \u00b7 awaiting others";
   show("nsGame");waiting(WAIT);
   await syncClock();if(BATCH!==mine)return;
-  tick();timers=[setInterval(tick,100),setInterval(pulse,CFG.PING),setInterval(syncClock,30000)];pulse();sys("Connected. Only verified members in this batch can see this chat.")}
+  tick();timers=[setInterval(tick,100),setInterval(()=>pulse(),CFG.PING),setInterval(()=>{if(Date.now()-hotAt<20000)pulse()},1000),setInterval(syncClock,30000)];pulse();sys("Connected. Only verified members in this batch can see this chat.")}
 function stopGame(){timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
 /* offline: stop heartbeats, tell the server (it removes an empty random batch itself) */
 function goOffline(){

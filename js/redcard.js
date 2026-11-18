@@ -9,7 +9,7 @@ try{
 const api=V.services.api,$=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hap=k=>{try{V.tg.haptic(k||"light")}catch(e){}};
-const LIMIT=5,POLL=4000,FRESH=15000;
+const LIMIT=5,POLL=3000,FRESH=20000,MISS=3;
 const body=document.body;
 
 /* ---------------- red palette + notice ---------------- */
@@ -27,21 +27,24 @@ function mount(){
  if(note)return;
  note=document.createElement("div");note.id="rcNote";note.setAttribute("role","status");note.setAttribute("aria-live","assertive");
  body.appendChild(note)}
+let lit=null;
+/* Only touches the page when the state actually changes, so repeated pings can never make it blink. */
 function setGlow(on){mount();on=!!on;
- document.documentElement.classList.toggle("rc-red",on);frame(on);
- try{const a=V.tg.app;if(a){a.setHeaderColor&&a.setHeaderColor(on?HEAD_ON:HEAD_OFF);a.setBackgroundColor&&a.setBackgroundColor(on?HEAD_ON:HEAD_OFF);a.setBottomBarColor&&a.setBottomBarColor(on?HEAD_ON:HEAD_OFF)}}catch(e){}}
+ if(lit!==on){lit=on;document.documentElement.classList.toggle("rc-red",on);
+  try{const a=V.tg.app;if(a){a.setHeaderColor&&a.setHeaderColor(on?HEAD_ON:HEAD_OFF);a.setBackgroundColor&&a.setBackgroundColor(on?HEAD_ON:HEAD_OFF);a.setBottomBarColor&&a.setBottomBarColor(on?HEAD_ON:HEAD_OFF)}}catch(e){}}
+ frame(on)}
 function announce(){
  mount();note.textContent="Red Card Joined";note.classList.remove("on");void note.offsetWidth;note.classList.add("on");
  clearTimeout(noteT);noteT=setTimeout(()=>note.classList.remove("on"),3200);hap("heavy")}
 
 /* ---------------- which multiplayer room am I in ---------------- */
-let room=null,prev=0,timer=0,busy=false;
+let room=null,cnt=0,miss=0,timer=0,busy=false;
 const key=r=>r.kind+":"+r.batch;
 function seen(kind,batch){
  const r={kind,batch:String(batch).slice(0,60),t:Date.now()};
- if(!room||key(room)!==key(r)){room=r;prev=0;ping()}else room.t=r.t;
+ if(!room||key(room)!==key(r)){room=r;cnt=0;miss=0;setGlow(false);ping()}else room.t=r.t;
  if(!timer)timer=setInterval(tick,POLL)}
-function clear(){room=null;prev=0;setGlow(false);clearInterval(timer);timer=0}
+function clear(){room=null;cnt=0;miss=0;setGlow(false);clearInterval(timer);timer=0}
 function tick(){
  if(!room)return;
  if(Date.now()-room.t>FRESH){clear();return}
@@ -51,14 +54,16 @@ async function ping(){
  try{r=await api.redcard_ping({kind:r0.kind,batch:r0.batch})}catch(e){r=null}busy=false;
  if(!room||key(room)!==key(r0)||!r||!r.ok)return;
  const n=Math.max(0,Math.min(99,+r.red||0));
- setGlow(n>0);if(n>prev)announce();prev=n}
+ /* Going up is instant. Going down only counts after MISS answers in a row, so one late heartbeat from the red card can't flash the portal black. */
+ if(n>=cnt){miss=0;if(n>cnt)announce();cnt=n}else if(++miss>=MISS){cnt=n;miss=0}
+ setGlow(cnt>0)}
 V.red={room:(kind,batch)=>{batch?seen(kind,batch):clear()},clear};
 
 /* Node Sync and Spore: learn the room from the calls those screens already make. */
 [["sync_ping","sync"],["rec_sync_ping","sync"],["spore_state","spore"]].forEach(([name,kind])=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(d){try{if(d&&d.batch)seen(kind,d.batch)}catch(e){}return f.apply(this,arguments)}});
-["sync_leave","rec_sync_leave","spore_leave","sync_done","rec_sync_done"].forEach(name=>{
+["sync_leave","rec_sync_leave","spore_leave"].forEach(name=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(){try{clear()}catch(e){}return f.apply(this,arguments)}});
 /* ---------------- founder page: choose the red cards (own tab, founder only) ---------------- */
