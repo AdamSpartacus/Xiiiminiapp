@@ -261,7 +261,7 @@ function pay(p,a,to=-1){a=Math.min(p.cash,a);p.cash-=a;if(to>=0){G.P[to].cash+=a
 function setLen(n){LEN=n;menu()}
 let _rest="";function setRest(h){if(h===_rest)return;_rest=h;$("#rest").innerHTML=h}
 const hdrT=()=>{const t=Math.max(0,G.end-Date.now()),m=Math.floor(t/60000),sc=Math.floor(t/1000)%60;return `Grand Master: ${G.P[G.chair].n} · Treasury ${fmt(G.pot)}`+(G.ph=="over"?"":` · ${m}:${String(sc).padStart(2,"0")} left`)};
-function menu(){GEN++;G=null;_rest="";$("main").innerHTML=`<div class="seal" style="--t:84px;margin:30px auto 16px">◬</div><p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:42px">CONCLAVE</div><p class="sub">The Inner Circle convenes. Only one becomes Grand Master.</p><div class="card"><p style="margin:0 0 8px">Walk the hidden halls of the Order. Acquire holdings, collect tribute, survive omens and vote on decrees that bend the rules. Your mandate is secret, and so are your rivals’.</p><p class="eb" style="margin:16px 0 8px">Length</p><div class="dock"><button class="pri" style="pointer-events:none">Long · 30 minutes</button></div><p class="eb" style="margin:16px 0 8px">Play with other members</p><div class="dock"><button class="pri" data-act="batchUI">Batches · create or join</button></div><p class="note" style="margin:10px 0 0">Real members only. A game needs at least ${MINP} members in the batch, and every seat is a real person. Live chat is inside your batch.</p></div><div class="dock" style="margin-top:6px"><button data-act="back">Back to portal</button></div>`}
+function menu(){GEN++;G=null;_rest="";$("main").innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:42px">CONCLAVE</div><p class="sub">The Inner Circle convenes. Only one becomes Grand Master.</p><div class="card"><p style="margin:0 0 8px">Walk the hidden halls of the Order. Acquire holdings, collect tribute, survive omens and vote on decrees that bend the rules. Your mandate is secret, and so are your rivals’.</p><p class="eb" style="margin:16px 0 8px">Length</p><div class="dock"><button class="pri" style="pointer-events:none">Long · 30 minutes</button></div><p class="eb" style="margin:16px 0 8px">Play with other members</p><div class="dock"><button class="pri" data-act="batchUI">Batches · create or join</button></div><p class="note" style="margin:10px 0 0">Real members only. A game needs at least ${MINP} members in the batch, and every seat is a real person. Live chat is inside your batch.</p></div>`}
 function start(n,names){if(!window.CLOK)return;GEN++;_rest="";G={end:Date.now()+GAME_MS,away:0,r:1,R:LEN,cur:0,chair:0,ph:"",pot:0,log:[],dice:[0,0],sel:null,fl:{toll:0,sal:200,levy:100},own:Array(32).fill(-1),hist:{},alert:"",pi:0,props:PROPS(),P:[]};
 for(let i=0;i<n;i++)G.P.push({i,n:(names&&names[i])||NAMES[i],cash:1500,inf:0,pos:0,ob:rnd(OBJ.length),earned:0});say("The Conclave is called to order.");turn()}
 async function turn(){const p=G.P[G.cur];if(p.out){endTurn();return}G.ph=(p.i||G.away)?"wait":"roll";G.sel=null;render();if(p.i){await sleep(400);roll(p)}else if(G.away)awayTurn(p)}
@@ -490,9 +490,6 @@ intro();
   else lock();
  }
  function exitFull(){const x=document.exitFullscreen||document.webkitExitFullscreen;if(x)try{x.call(document)}catch(e){}}
- const b=document.createElement("button");b.id="fsb";b.type="button";b.title="Fullscreen";b.setAttribute("aria-label","Toggle fullscreen");b.textContent="⛶";
- b.onclick=e=>{e.stopPropagation();isFS()?exitFull():goFull()};
- document.body.appendChild(b);
   /* first tap enters fullscreen (browsers require a gesture) */
  addEventListener("pointerdown",function once(){goFull();removeEventListener("pointerdown",once,true)},true);
  document.addEventListener("fullscreenchange",()=>{if(isFS())lock()});
@@ -537,7 +534,6 @@ intro();
 document.addEventListener("click",function(e){const b=e.target&&e.target.closest?e.target.closest("[data-act]"):null;if(!b||b.disabled)return;const v=+b.dataset.v;
  switch(b.dataset.act){
   case"batchUI":batchUI();break;
-  case"back":location.href="../";break;
   case"sel":G.sel=v;render();break;
   case"roll":roll(G.P[0]);break;
   case"buy":buy(v);break;
