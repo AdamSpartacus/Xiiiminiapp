@@ -131,7 +131,7 @@ function tick(){
   else if(r!==cur){const prev=cur,was=armed;cur=r;armed=true;newPuzzle();setSt("Rebuild your code and lock it in.");if(was)setTimeout(()=>judge(prev),CFG.GRACE)}
   $("nsBarI").style.width=((sn%R)/R*100)+"%";$("nsT").textContent=((R-sn%R)/1000).toFixed(1)}
 /* heartbeat: tells the server this node is online, and brings back the online count, this node's codes, new chat lines and the win */
-let cq=[],again=false,hotAt=0,meN=0;
+let cq=[],again=false,hotAt=0,meN=0,lastP=0;
 const nrm=s=>String(s==null?"":s).replace(/\s+/g," ").trim().slice(0,200);
 /* pulse(): one heartbeat at a time. pulse(true) = "run one right after the one in flight" (used after sending a chat line) */
 async function pulse(force){
@@ -139,12 +139,12 @@ async function pulse(force){
   await pulseOnce();
   if(again&&BATCH){again=false;pulse()}else again=false}
 async function pulseOnce(){
-  const b=BATCH;if(!b||busy)return;busy=true;
+  const b=BATCH;if(!b||busy)return;busy=true;lastP=Date.now();
   let r;try{r=await call("sync_ping",{batch:b,after:lastChat})}catch(e){r=null}
   busy=false;
   if(!r||b!==BATCH||decoded)return;
   if(!r.ok){if(r.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
-  if(KIND==="recover"&&+r.need>0&&+r.need!==CFG.NEED){CFG.NEED=+r.need;paintNeed()}
+  if(+r.need>0&&+r.need!==CFG.NEED){const was=CFG.NEED;CFG.NEED=+r.need;paintNeed();rcPaint();if(CFG.NEED<was&&KIND!=="recover")sys("A red card used its power. Nodes needed is now "+CFG.NEED+".")}
   if(r.codes)Object.assign(CODES,r.codes);
   (Array.isArray(r.chat)?r.chat:[]).forEach(m=>{if(m&&m.id>lastChat){lastChat=m.id;hotAt=Date.now();
     const mine=m.u===ME,tx=String(m.t||"").slice(0,200);
@@ -155,6 +155,30 @@ async function pulseOnce(){
   const was=active;active=online>=CFG.NEED;
   if(!active&&(was||cur!==null)){cur=null;waiting(WAIT)}
   $("nsOn").textContent=`nodes online: ${online}/${CFG.NEED}`+(online<CFG.NEED?" \u00b7 awaiting others":"")}
+/* ---------- red card power: a red card may spend 20 merits to lower the nodes needed by 5, only in syncs that need more than 10 ---------- */
+const RC_COST=20,RC_CUT=5,RC_MIN=10;let rcOK=false,rcBusy=false;
+function rcPaint(){
+  const box=$("nsRc");if(!box)return;
+  const show=!!(rcOK&&BATCH&&!decoded&&CFG.NEED>RC_MIN);box.hidden=!show;if(!show)return;
+  $("nsRcT").textContent="Red card power. Lower the nodes needed from "+CFG.NEED+" to "+(CFG.NEED-RC_CUT)+" for everyone in this batch. It costs you "+RC_COST+" merits and works once per batch.";
+  $("nsRcB").textContent=rcBusy?"Working...":"Use red card power (-"+RC_COST+" merits)";$("nsRcB").disabled=rcBusy}
+async function rcStatus(){
+  const b=BATCH;rcOK=false;rcPaint();if(!b||!api.redcard_power)return;
+  let r;try{r=await api.redcard_power({op:"status",batch:b,mode:KIND})}catch(e){r=null}
+  if(b!==BATCH)return;rcOK=!!(r&&r.ok&&r.eligible&&!r.used);rcPaint()}
+function rcAsk(msg){
+  try{const t=V.tg&&V.tg.app;if(t&&t.showConfirm)return new Promise(res=>t.showConfirm(msg,res))}catch(e){}
+  return Promise.resolve(confirm(msg))}
+$("nsRcB").onclick=async()=>{
+  if(rcBusy||!BATCH||!rcOK)return;const b=BATCH;
+  if(!(await rcAsk("Spend "+RC_COST+" merits to lower the nodes needed by "+RC_CUT+" for everyone in this batch?")))return;
+  if(b!==BATCH)return;rcBusy=true;rcPaint();let r;
+  try{r=await api.redcard_power({op:"use",batch:b,mode:KIND})}catch(e){r=null}
+  rcBusy=false;if(b!==BATCH)return;
+  if(r&&r.ok){rcOK=false;const was=CFG.NEED;CFG.NEED=+r.need>0?+r.need:Math.max(RC_MIN,was-RC_CUT);paintNeed();
+    sys("Red card power used. Nodes needed is now "+CFG.NEED+"."+(r.merits!=null?" Merits left: "+r.merits+".":""));try{V.tg.haptic("heavy")}catch(e){}pulse(true)}
+  else sys((r&&r.error)||"Could not use the red card power. Try again.");
+  rcPaint()};
 /* ---------- live chat: relayed by the server, verified members only, wiped every 3 min ---------- */
 function line(u,t,me){
   const d=document.createElement("div");d.className="nsm"+(me?" me":"");
@@ -175,14 +199,14 @@ async function join(b){
   BATCH=b.slice(0,60);const mine=BATCH,label=b.replace(/^f-(.*)-[a-z0-9]+$/,"$1 (friends)");
   $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";
   $("nsOn").textContent="nodes online: 0/"+CFG.NEED+" \u00b7 awaiting others";
-  show("nsGame");waiting(WAIT);
+  show("nsGame");waiting(WAIT);rcOK=false;rcBusy=false;rcPaint();
   await syncClock();if(BATCH!==mine)return;
-  tick();timers=[setInterval(tick,100),setInterval(()=>pulse(),CFG.PING),setInterval(()=>{if(Date.now()-hotAt<20000)pulse()},1000),setInterval(syncClock,30000)];pulse();sys("Connected. Only verified members in this batch can see this chat.")}
+  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,30000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
 function stopGame(){timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
 /* offline: stop heartbeats, tell the server (it removes an empty random batch itself) */
 function goOffline(){
   const b=BATCH;if(!b)return;
-  stopGame();
+  stopGame();rcOK=false;rcPaint();
   try{call("sync_leave",{batch:b})}catch(e){}}
 function leaveBatch(){goOffline();BATCH="";away=null}
 $("nsLeave").onclick=()=>{leaveBatch();show("nsPick");search($("nsQ").value.trim())};
