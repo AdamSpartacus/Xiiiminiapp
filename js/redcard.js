@@ -3,7 +3,7 @@ try{
    The founder chooses up to 5 members as red cards (founder-only "Red cards" tab in the sidebar Founder section).
    While you are inside any multiplayer place (Node Sync, Spore or a Conclave batch) this file pings the backend
    (edge function illuminati-redcard) with the room you are in. When a red card member is in that same room the
-   whole portal glows red from the edges and a "Red Card Joined" notice appears. Outside multiplayer nothing happens.
+   whole portal turns dark red and a "Red Card Joined" notice appears. Outside multiplayer nothing happens.
    Who is a red card, and who is in a room, is decided by the backend only; this file just shows it. */
 (function(V){
 const api=V.services.api,$=id=>document.getElementById(id);
@@ -12,14 +12,19 @@ const hap=k=>{try{V.tg.haptic(k||"light")}catch(e){}};
 const LIMIT=5,POLL=4000,FRESH=15000;
 const body=document.body;
 
-/* ---------------- glow + notice ---------------- */
-let glow=null,note=null,noteT=0;
+/* ---------------- red palette + notice ---------------- */
+/* Two full-screen layers blend over the portal: one multiplies everything toward red, one lifts the blacks to dark red.
+   Nothing in the portal itself is changed, so removing the layers restores the normal palette instantly. */
+let glow=null,glow2=null,note=null,noteT=0;
+const HEAD_ON="#1a0309",HEAD_OFF="#000000";
 function mount(){
  if(glow)return;
+ glow2=document.createElement("div");glow2.id="rcGlow2";glow2.setAttribute("aria-hidden","true");
  glow=document.createElement("div");glow.id="rcGlow";glow.setAttribute("aria-hidden","true");
  note=document.createElement("div");note.id="rcNote";note.setAttribute("role","status");note.setAttribute("aria-live","assertive");
- body.appendChild(glow);body.appendChild(note)}
-function setGlow(on){mount();glow.classList.toggle("on",!!on)}
+ body.appendChild(glow);body.appendChild(glow2);body.appendChild(note)}
+function setGlow(on){mount();glow.classList.toggle("on",!!on);glow2.classList.toggle("on",!!on);
+ try{const a=V.tg.app;if(a){a.setHeaderColor&&a.setHeaderColor(on?HEAD_ON:HEAD_OFF);a.setBackgroundColor&&a.setBackgroundColor(on?HEAD_ON:HEAD_OFF);a.setBottomBarColor&&a.setBottomBarColor(on?HEAD_ON:HEAD_OFF)}}catch(e){}}
 function announce(){
  mount();note.textContent="Red Card Joined";note.classList.remove("on");void note.offsetWidth;note.classList.add("on");
  clearTimeout(noteT);noteT=setTimeout(()=>note.classList.remove("on"),3200);hap("heavy")}
