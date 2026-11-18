@@ -736,6 +736,7 @@ html[data-tg] #fsb{display:none}
 <script defer src="js/meta.js"></script>
 <script defer src="js/veil.js"></script>
 <script defer src="js/archive.js"></script>
+<script defer src="js/vote.js"></script>
 <script>window.__MODEL__={json:"assets/model.e0f63614.json",bin:"assets/pyramid.0334b620.bin"}</script>
 <script defer src="js/loader.js"></script>
 <style>/* Conclave: members-only game in the sidebar. The game is embedded in this file (<template id=clvTpl> + js/conclave.js) and verifies membership itself. */
@@ -753,6 +754,67 @@ body.ready[data-view=conclave] #menubtn{display:flex}
 html body[data-view=conclave] #tabs{display:none!important}
 /* <main> is pointer-events:none, so the conclave frame inherited it and ignored every tap and drag */
 html body .view[data-view=conclave],#clvWrap,#clvFrame{pointer-events:auto}
+</style>
+<style>/* Voting: member page (data-view=vote) and founder setup (data-view=voteset). Every class is prefixed vt- / vs / vbadge so nothing else is touched. */
+body[data-view=vote] #cats button[data-go],body[data-view=voteset] #cats button[data-go]{display:flex!important}
+body[data-view=vote] #cats .msub,body[data-view=voteset] #cats .msub{display:flex}
+body.ready[data-view=vote] #menubtn,body.ready.owner[data-view=voteset] #menubtn{display:flex}
+#cats button.votebtn{order:12;width:100%!important;height:auto!important;padding:15px 16px!important;margin:0!important;border-radius:14px!important;justify-content:flex-start}
+#cats button.votebtn svg{width:20px;height:20px;flex:none}
+html body:not(.member):not(.owner) #cats button.votebtn{display:none!important}
+.vbadge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#fff;color:#000;font:700 11px/20px var(--sans);font-style:normal;letter-spacing:0;text-align:center}
+.vbadge[hidden]{display:none}
+#cats button[aria-pressed=true] .vbadge{background:#000;color:#fff}
+.view[data-view=vote] .sheet,.view[data-view=voteset] .sheet{height:calc(100% - var(--sat) - 60px);max-height:none}
+@media (min-width:700px){.view[data-view=vote] .sheet,.view[data-view=voteset] .sheet{height:calc(100% - 24px)}}
+.view[data-view=vote] [hidden],.view[data-view=voteset] [hidden]{display:none!important}
+.vt-rules{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
+.vt-rules div{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+.vt-rules b{display:block;font:500 21px var(--serif);color:#fff}
+.vt-rules small{display:block;margin-top:4px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);line-height:1.4}
+.vt-lead{margin:0 0 16px;font-size:13px;line-height:1.55;color:var(--mut)}
+.vt-role{margin:0 0 18px;padding:16px;border:1px solid rgba(255,255,255,.28);border-radius:16px;background:rgba(255,255,255,.05)}
+.vt-role b{display:block;font:600 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:#fff;margin:0 0 6px}
+.vt-role span{display:block;font-size:12.5px;line-height:1.5;color:var(--mut)}
+.vt-role .btn{margin-top:14px}
+.vt-role .btn:disabled{opacity:.45}
+.vt-h{margin-top:20px}
+.vt-card{margin:0 0 12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.35)}
+.vt-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.vt-pill{font:600 9.5px var(--sans);letter-spacing:.16em;text-transform:uppercase;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.vt-pill.open{color:#fff;border-color:rgba(255,255,255,.5)}
+.vt-pill.passed{color:#9be3b0;border-color:rgba(155,227,176,.45)}
+.vt-pill.failed,.vt-pill.lost{color:#ff9a9a;border-color:rgba(255,154,154,.4)}
+.vt-pill.revision{color:#ffc27a;border-color:rgba(255,194,122,.45)}
+.vt-who{font-size:11.5px;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vt-t{margin:0 0 6px;font:500 21px/1.25 var(--serif);color:#fff;word-break:break-word}
+.vt-body{margin:0;font-size:13.5px;line-height:1.55;color:var(--mut);white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.vt-card.x .vt-body{display:block}
+.vt-more{background:none;border:0;padding:8px 0 0;color:var(--text);font:600 10.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.vt-meter{position:relative;height:10px;margin:16px 0 9px;border-radius:99px;background:rgba(255,255,255,.08)}
+.vt-meter i{position:absolute;top:0;bottom:0;border-radius:99px}
+.vt-meter .s{left:0;background:linear-gradient(#fff,#b9bfca)}
+.vt-meter .o{right:0;background:#c97a7a}
+.vt-meter .tk{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:rgba(255,255,255,.6);border-radius:2px}
+.vt-nums{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.vt-nums b{color:#fff;font-weight:600}
+.vt-nums small{color:var(--dim);font-size:11px}
+.vt-meta{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:var(--dim);font-variant-numeric:tabular-nums}
+.vt-out{margin:12px 0 0;font-size:12.5px;line-height:1.5;color:var(--text)}
+.vt-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.vt-act .lbt{flex:1;padding:13px 14px;text-align:center;min-height:44px}
+.vt-act .lbt:disabled{opacity:.5}
+.vt-contest{margin:0 0 14px;padding:12px;border:1px solid rgba(255,255,255,.24);border-radius:20px;background:rgba(255,255,255,.03)}
+.vt-contest .vt-card{margin:0}
+.vt-ch{margin:0 0 10px;font-size:12px;line-height:1.5;color:var(--mut)}
+.vt-ch b{font:600 10.5px var(--sans);letter-spacing:.22em;text-transform:uppercase;color:#fff;margin-right:6px}
+.vt-vs{margin:10px 0;text-align:center;font:600 10px var(--sans);letter-spacing:.34em;color:var(--dim)}
+.vt-vsnote{margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(0,0,0,.35);font-size:12.5px;line-height:1.55;color:var(--mut);word-break:break-word}
+.vt-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
+.vt-chip{font:600 11.5px var(--sans);padding:7px 11px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text)}
+.vt-chip.you{border-color:rgba(255,255,255,.55)}
+.vt-sel{margin:0 0 10px;font:600 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--text)}
+@media (max-width:359px){.vt-rules{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1114,15 +1176,56 @@ html body .view[data-view=conclave],#clvWrap,#clvFrame{pointer-events:auto}
       <div class="nscard" style="margin-top:22px"><p class="nslbl">Current recovery</p><p id="rsState"></p><button class="btn" id="rsOpen" type="button">Open new archive recovery</button><p class="note" id="rsONote" role="status"></p></div>
     </div>
   </div></section>
+  <section class="view" data-view="vote"><div class="glass sheet" id="vtSheet">
+    <p class="sh">Voting<small id="vtCount"></small></p>
+    <div class="mi-gate" id="vtGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Loading the votes</p></div>
+    <div id="vtApp" hidden>
+      <div class="vt-rules" id="vtRules"></div>
+      <p class="vt-lead" id="vtLead"></p>
+      <div id="vtBar"></div>
+      <div id="vtForm" hidden>
+        <p class="eyebrow" id="vtFT">New request</p>
+        <p class="vt-vsnote" id="vtVs" hidden></p>
+        <label class="fld" style="margin-top:14px">Title<input id="vtTitle" type="text" maxlength="120" autocomplete="off" placeholder="What are you asking the members to decide?"></label>
+        <label class="fld">Request<textarea id="vtBody" maxlength="2000" rows="7" placeholder="Explain the request clearly, including what changes if it passes."></textarea></label>
+        <p class="lcnt" id="vtCnt">0/2000</p>
+        <label class="fld" id="vtHrsW">Voting period<select id="vtHrs"><option value="24">24 hours</option><option value="48">48 hours</option><option value="72" selected>72 hours</option><option value="168">7 days</option></select></label>
+        <button class="btn solid" id="vtSend" type="button" style="margin-top:6px">Submit request</button>
+        <button class="btn" id="vtCancel" type="button" style="margin-top:10px">Cancel</button>
+        <p class="note" id="vtFN" role="status"></p>
+      </div>
+      <div id="vtList"></div>
+      <div id="vtProp"></div>
+    </div>
+  </div></section>
+  <section class="view" data-view="voteset"><div class="glass sheet">
+    <div class="fhead"><div class="frow"><button class="fback" type="button" data-go="vote" aria-label="Back to voting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Voting</span></button><h2>Voting setup</h2></div></div>
+    <div class="mi-gate" id="vsGate" role="status" aria-live="polite"><div class="mi-sp"></div><p>Verifying founder access</p></div>
+    <div id="vsApp" hidden>
+      <p class="eyebrow" style="margin-top:18px">Proposers</p>
+      <p class="gl-p mi-lead">Choose up to 10 members who can raise official requests. Their requests appear in every member’s Voting section. Proposers can also put up a competing request against another proposer’s, and the one with the most votes passes. Every other member can only vote.</p>
+      <p class="vt-sel" id="vsCount"></p>
+      <div class="lchips" id="vsChips"></div>
+      <input class="lsearch" id="vsQ" type="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search members" aria-label="Search members">
+      <div id="vsList"></div>
+      <p class="eyebrow" style="margin-top:24px">Decision rules</p>
+      <p class="gl-p mi-lead" id="vsPrev"></p>
+      <label class="fld">Minimum participation (%)<input id="vsMin" type="number" inputmode="numeric" min="1" max="100" step="1" autocomplete="off"></label>
+      <label class="fld">Support needed to pass (more than %)<input id="vsPass" type="number" inputmode="numeric" min="50" max="99" step="1" autocomplete="off"></label>
+      <label class="fld">Opposition that fails a request (more than %)<input id="vsFail" type="number" inputmode="numeric" min="1" max="50" step="1" autocomplete="off"></label>
+      <button class="btn solid" id="vsSave" type="button">Save</button>
+      <p class="note" id="vsNote" role="status"></p>
+    </div>
+  </div></section>
 <section class="view" data-view="conclave"><div id="clvWrap"></div></section>
 </main>
 <div class="mi-toast" id="miToast" role="status" aria-live="polite"></div>
 <div id="arLb" role="dialog" aria-modal="true" aria-label="Image viewer"><img id="arLbI" alt=""><div class="ar-act"><button class="btn" id="arLbX" type="button">Close</button><button class="btn solid" id="arLbS" type="button">Save original</button></div></div>
 <button id="lbtn" type="button" aria-label="Portal lock" title="Portal lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></button>
 <button id="fbtn" type="button" aria-label="Founders" title="Founders"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6 6.1 20.8l1.2-6.6L2.4 9.6l6.7-.9z"/></svg></button>
-<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="archive" aria-pressed="false">Corrupted Archive</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><button class="clvbtn" data-go="conclave" aria-pressed="false" aria-label="Conclave" title="Conclave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 21 19.5H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="2.2" fill="currentColor"/></svg><span>Conclave</span></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button><button class="mbtn own" id="marcup" type="button">Archive Upload</button><button class="mbtn own" id="mrecset" type="button">Recovery Sync</button></div>
+<div id="cats" role="navigation" aria-label="Menu"><span class="mlabel">Menu</span><button data-go="done" aria-pressed="true">Profile</button><button data-go="merits" aria-pressed="false">Merits</button><button data-go="genesis" aria-pressed="false">Genesis Lock</button><button data-go="web" aria-pressed="false">Access Web</button><button data-go="archive" aria-pressed="false">Corrupted Archive</button><button data-go="tools" aria-pressed="false">Tools</button><div class="msub" id="msub" role="group" aria-label="Tools"></div><button class="sporebtn" data-go="spore" aria-pressed="false" aria-label="Spore" title="Spore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 7.8v8.4l6.6-4.2z" fill="currentColor"/></svg><span>Spore</span></button><button class="clvbtn" data-go="conclave" aria-pressed="false" aria-label="Conclave" title="Conclave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 21 19.5H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="2.2" fill="currentColor"/></svg><span>Conclave</span></button><button class="votebtn" data-go="vote" aria-pressed="false" aria-label="Voting" title="Voting"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5h14v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z"/><path d="M8 12.5v-7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v7"/><path d="M10 8.6l1.5 1.5 2.6-3.1"/></svg><span>Voting</span><i class="vbadge" id="vtBadge" hidden></i></button><span class="mlabel own">Founder</span><button class="mbtn own" id="mfound" type="button">Founders</button><button class="mbtn own" id="mlock" type="button">Portal lock</button><button class="mbtn own" id="mveil" type="button">Veil creator</button><button class="mbtn own" id="marcup" type="button">Archive Upload</button><button class="mbtn own" id="mrecset" type="button">Recovery Sync</button><button class="mbtn own" id="mvote" type="button">Voting setup</button></div>
 <button id="menubtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="cats"><svg class="bars" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="arcGoUp" data-go="arcup" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSync" data-go="sync" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSet" data-go="recset" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+<div id="menuscrim"></div><button id="vcGoView" data-go="veil" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="arcGoUp" data-go="arcup" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSync" data-go="sync" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="recGoSet" data-go="recset" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="voteGoSet" data-go="voteset" type="button" hidden aria-hidden="true" tabindex="-1"></button>
 
 <div id="plock" role="alertdialog" aria-modal="true" aria-labelledby="plh" aria-describedby="plm"><div class="glass pl-card"><div class="pl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div><div class="eyebrow">Warning from the System</div><h2 id="plh">Portal Locked</h2><p class="pl-msg" id="plm"></p><div class="pl-t" id="plc"></div></div></div>
 
