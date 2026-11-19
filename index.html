@@ -729,7 +729,7 @@ html[data-tg] #fsb{display:none}
 #introTop,#introBot{position:static;left:auto;right:auto;top:auto;bottom:auto}
 button{position:relative;border:1px solid rgba(255,255,255,.34);border-radius:18px;letter-spacing:.2em;color:#f2f3f5;text-shadow:0 1px 2px rgba(0,0,0,.85);background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 3px rgba(255,255,255,.08),0 3px 9px rgba(0,0,0,.6)}
 button:not(:disabled):hover{filter:brightness(1.12);border-color:rgba(255,255,255,.55)}
-button.pri{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.35),0 0 20px rgba(255,255,255,.14),0 3px 9px rgba(0,0,0,.6)}
+button.pri,body .tabs button[aria-pressed=true]{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.35),0 0 20px rgba(255,255,255,.14),0 3px 9px rgba(0,0,0,.6)}
 .card{border:1px solid rgba(255,255,255,.3);border-radius:28px;background:radial-gradient(120% 45% at 100% 0%,rgba(255,255,255,.12),transparent 60%),var(--mt-grain),linear-gradient(180deg,#141416,#08080a 45%,#0d0d0f);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(0,0,0,.7),0 20px 60px rgba(0,0,0,.65)}
 .bin,#lcI,input,select,textarea{border:1px solid rgba(255,255,255,.3);border-radius:16px;background:linear-gradient(180deg,#050506,#0f1012);box-shadow:inset 0 2px 5px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.12)}
 .die,.seal{border:1px solid rgba(255,255,255,.4)}
@@ -882,6 +882,10 @@ html body:not(.member):not(.owner) #cats button.votebtn{display:none!important}
 .vt-pc i{flex:none;align-self:stretch;width:1px;margin:7px 0;background:rgba(255,255,255,.28)}
 .vt-pc span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html body .lbt.on{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:var(--mt-bevel-on)}
+html body .ar-tabs button{border:1px solid var(--mt-edge);border-radius:18px;color:#cfd1d6;text-shadow:0 1px 2px rgba(0,0,0,.85);background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);box-shadow:var(--mt-bevel)}
+html body .ar-tabs button[aria-pressed=true]{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:var(--mt-bevel-on)}
+html body .mi-toast{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:var(--mt-bevel-on),0 10px 30px rgba(0,0,0,.6)}
+html body .vt-meter .s{background:var(--mt-chrome)}
 /* notification: show the whole message */
 html body .mi-toast{white-space:normal;overflow:visible;text-overflow:clip;width:max-content;max-width:calc(100vw - 32px);text-align:center;line-height:1.45;border-radius:22px;padding:12px 22px}
 </style><style id="chromeMenu">/* Chrome / brushed-metal menu drawer. Look only: no behaviour, ids and data-go hooks unchanged. */
