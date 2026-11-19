@@ -2,6 +2,10 @@
 /* ---- 1. membership gate ---- */
 /* Members only: the server (illuminati-portal) checks the signed Telegram login. Nothing below the gate starts until it says "member". */
 (function(){
+const EMB=(()=>{try{const m=document.querySelector('meta[name="clv-init"]');if(m&&m.content)return JSON.parse(decodeURIComponent(m.content))}catch(e){}return null})();
+/* red-card theme arrives from the parent as plain CSS variables; only accepted from the parent window */
+window.addEventListener("message",ev=>{if(ev.source!==parent)return;const m=ev.data;if(!m||m.clv!=="theme")return;let s=document.getElementById("rcFrameRed");const css=typeof m.css==="string"&&m.css.length<4000&&/^:root\{(--[a-z0-9-]+:[^;{}<>]+;?)+\}$/i.test(m.css)?m.css:"";if(css){if(!s){s=document.createElement("style");s.id="rcFrameRed";document.head.appendChild(s)}s.textContent=css}else if(s)s.remove()});
+try{if(window.parent!==window)parent.postMessage({clv:"red",op:"ready"},"*")}catch(e){}
 const SB={url:"https://agzhxwditnlzdcuqjjfz.supabase.co",key:"sb_publishable_-B_v-SqjFjh_Q8R29CksBQ_nO4KgmYy",fn:"illuminati-portal"};
 let _ok=false,_nm="",_at=0,_busy=null;
 /* read-only: the flag and name can only be set by the server check below */
@@ -9,7 +13,7 @@ Object.defineProperty(window,"CLOK",{get:()=>_ok,configurable:false});
 Object.defineProperty(window,"CLNAME",{get:()=>_nm,configurable:false});
 const g=document.getElementById("mgate"),gp=g&&g.parentNode,t=document.getElementById("mgt"),m=document.getElementById("mgm"),rb=document.getElementById("mgr");
 rb.onclick=()=>location.reload();
-function app(){try{const a=window.Telegram&&Telegram.WebApp;if(a&&a.initData)return a}catch(e){}try{if(window.parent!==window){const p=parent.Telegram&&parent.Telegram.WebApp;if(p&&p.initData)return p}}catch(e){}return null}
+function app(){if(EMB&&EMB.d)return{initData:EMB.d,platform:EMB.p,initDataUnsafe:{user:EMB.u}};try{const a=window.Telegram&&Telegram.WebApp;if(a&&a.initData)return a}catch(e){}try{if(window.parent!==window){const p=parent.Telegram&&parent.Telegram.WebApp;if(p&&p.initData)return p}}catch(e){}return null}
 function deny(msg,retry){const was=_ok;_ok=false;_nm="";_at=0;t.textContent="Members only";m.textContent=msg;rb.style.display=retry?"":"none";if(gp&&!g.isConnected)gp.appendChild(g);
  try{window.INTRO3D&&INTRO3D.stop()}catch(e){}
  try{if(typeof chatLeave==="function")chatLeave()}catch(e){}try{if(typeof batchLeave==="function")batchLeave()}catch(e){}
@@ -35,7 +39,7 @@ function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resol
   if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
 Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
 /* Batch gateway (conclave-batch): list/create/join/random/start/leave are all decided by the server, same as node sync and spore. */
-Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{const R=parent.ILLUMINATI&&parent.ILLUMINATI.red;if(R){if(action==="cb_leave")R.clear();else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)R.room("conclave",data.batch)}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
+Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{if(window.parent!==window){if(action==="cb_leave")parent.postMessage({clv:"red",op:"leave"},"*");else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)parent.postMessage({clv:"red",op:"room",batch:String(data.batch).slice(0,64)},"*")}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
 setInterval(()=>{if(_ok)recheck(true)},60000);
@@ -49,7 +53,7 @@ recheck(true)})();
 /* ---- device profile + adaptive quality (from the member portal) ---- */
 const P=(function(){
 const n=navigator,cn=n.connection||{},ua=n.userAgent||"",mem=+n.deviceMemory||0,cores=+n.hardwareConcurrency||0,
-tg=window.Telegram&&Telegram.WebApp,plat=String(tg&&tg.platform||"").toLowerCase(),
+tg=window.Telegram&&Telegram.WebApp,plat=String(tg&&tg.platform||(EMB&&EMB.p)||"").toLowerCase(),
 ios=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&n.maxTouchPoints>1)||plat==="ios",
 save=!!cn.saveData||/(^|-)2g$/.test(cn.effectiveType||"");
 const KEY="cl_perf",st={get(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}},set(v){try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}}};
@@ -357,7 +361,7 @@ const BT={cl:null,dir:null,ch:null,id:"",name:"",pub:true,msgs:[],sid:Math.rando
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const bhash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
 const bclean=s=>s.replace(/[^\w \-]/g,"").replace(/\s+/g," ").trim().slice(0,24);
-function bme(){const u=window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user;let n=u&&(u.username||u.first_name);if(!n){try{n=localStorage.getItem("cl_name")}catch(e){}if(!n){n="Guest"+Math.floor(1000+Math.random()*9000);try{localStorage.setItem("cl_name",n)}catch(e){}}}return String(n).replace(/[^\w]/g,"").slice(0,16)||"Guest"}
+function bme(){const u=(EMB&&EMB.u)||(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user);let n=u&&(u.username||u.first_name);if(!n){try{n=localStorage.getItem("cl_name")}catch(e){}if(!n){n="Guest"+Math.floor(1000+Math.random()*9000);try{localStorage.setItem("cl_name",n)}catch(e){}}}return String(n).replace(/[^\w]/g,"").slice(0,16)||"Guest"}
 let BME=bme();if(window.CLOK&&window.CLNAME)BME=window.CLNAME;addEventListener("clok",()=>{if(window.CLNAME)BME=window.CLNAME});
 function bload(){return window.CLRECHECK().then(ok=>{if(!ok)throw new Error("members only");return bload0()})}
 function bload0(){if(window.supabase&&BT.cl)return Promise.resolve();return new Promise((ok,bad)=>{const go=()=>{try{BT.cl=BT.cl||supabase.createClient(SB.url,SB.key,{realtime:{params:{eventsPerSecond:8}}});window.CLTOKEN().then(tk=>{if(!tk)return bad(new Error("no token"));BT.cl.realtime.setAuth(tk);if(!BT.rf)BT.rf=setInterval(()=>window.CLTOKEN(true).then(n=>{if(n&&BT.cl)BT.cl.realtime.setAuth(n)}),2400000);ok()}).catch(bad)}catch(e){bad(e)}};if(window.supabase)return go();const e=document.createElement("script");e.src=SB.lib;e.onload=go;e.onerror=()=>bad(new Error("load"));document.head.appendChild(e)})}
