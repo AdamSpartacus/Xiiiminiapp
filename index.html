@@ -722,7 +722,19 @@ html[data-tg] #fsb{display:none}
 #lcMsgs{height:46vh;min-height:180px;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:6px;text-align:left}
 .lcm{font:13px/1.4 var(--sans);padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.04);word-break:break-word}.lcm b{display:block;font:600 10.5px var(--sans);letter-spacing:.12em;color:var(--dim);margin-bottom:2px}.lcm.me{background:rgba(255,255,255,.1)}
 #lcI{flex:1;min-width:0;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font:16px var(--sans)}
-</style><main></main>
+</style><style id="clvChrome">/* Chrome / brushed-metal look inside the Conclave frame; the 3D logo is removed from the intro. */
+:root{--mt-sheen:linear-gradient(100deg,rgba(255,255,255,0) 32%,rgba(255,255,255,.15) 52%,rgba(255,255,255,0) 70%);--mt-grain:repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px);--mt-dark:linear-gradient(180deg,#242528 0%,#0d0d0f 55%,#050506 100%);--mt-chrome:linear-gradient(105deg,#5f6166 0%,#caccd1 16%,#8b8d93 30%,#f5f6f8 46%,#a5a7ac 60%,#dddee1 78%,#8f9197 100%)}
+#intro #stage{visibility:hidden;pointer-events:none}
+#intro{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+#introTop,#introBot{position:static;left:auto;right:auto;top:auto;bottom:auto}
+button{position:relative;border:1px solid rgba(255,255,255,.34);border-radius:18px;letter-spacing:.2em;color:#f2f3f5;text-shadow:0 1px 2px rgba(0,0,0,.85);background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 3px rgba(255,255,255,.08),0 3px 9px rgba(0,0,0,.6)}
+button:not(:disabled):hover{filter:brightness(1.12);border-color:rgba(255,255,255,.55)}
+button.pri{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.35),0 0 20px rgba(255,255,255,.14),0 3px 9px rgba(0,0,0,.6)}
+.card{border:1px solid rgba(255,255,255,.3);border-radius:28px;background:radial-gradient(120% 45% at 100% 0%,rgba(255,255,255,.12),transparent 60%),var(--mt-grain),linear-gradient(180deg,#141416,#08080a 45%,#0d0d0f);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(0,0,0,.7),0 20px 60px rgba(0,0,0,.65)}
+.bin,#lcI,input,select,textarea{border:1px solid rgba(255,255,255,.3);border-radius:16px;background:linear-gradient(180deg,#050506,#0f1012);box-shadow:inset 0 2px 5px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.12)}
+.die,.seal{border:1px solid rgba(255,255,255,.4)}
+</style>
+<main></main>
 <div id="mgate" style="position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;color:#f0f1f4;font:14px/1.5 system-ui,sans-serif"><div id="mgt" style="font:600 11px system-ui;letter-spacing:.28em;text-transform:uppercase;color:#a9adb5">Verifying membership…</div><div id="mgm" style="max-width:300px;color:#a9adb5"></div><button id="mgr" type="button" style="display:none;font:600 12px system-ui;letter-spacing:.14em;text-transform:uppercase;color:#000;background:linear-gradient(#fff,#b9bfca);border:0;border-radius:14px;padding:14px 22px">Try again</button></div>
 <div id="intro"><canvas id="stage" aria-hidden="true"></canvas>
 <div id="introTop"><p class="eb">Illuminati Secret Society</p><div class="wm">CONCLAVE</div></div>
@@ -861,6 +873,37 @@ html body #menubtn{width:42px;height:42px;min-width:42px;border:1px solid rgba(2
 html body.menu-open #menubtn{opacity:0;pointer-events:none}
 html body #menuscrim{background:rgba(0,0,0,.6)}
 html[data-perf=low] body #cats{backdrop-filter:none;-webkit-backdrop-filter:none}
+</style>
+<style id="chromeAll">/* Chrome / brushed-metal material, shared by every section. Look only: no behaviour, ids and classes unchanged. */
+:root{--mt-sheen:linear-gradient(100deg,rgba(255,255,255,0) 32%,rgba(255,255,255,.15) 52%,rgba(255,255,255,0) 70%);--mt-grain:repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px);--mt-dark:linear-gradient(180deg,#242528 0%,#0d0d0f 55%,#050506 100%);--mt-chrome:linear-gradient(105deg,#5f6166 0%,#caccd1 16%,#8b8d93 30%,#f5f6f8 46%,#a5a7ac 60%,#dddee1 78%,#8f9197 100%);--mt-edge:rgba(255,255,255,.34);--mt-bevel:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 3px rgba(255,255,255,.08),0 3px 9px rgba(0,0,0,.6);--mt-bevel-on:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.35),0 0 20px rgba(255,255,255,.14),0 3px 9px rgba(0,0,0,.6)}
+/* panels */
+html body .glass{border:1px solid rgba(255,255,255,.3);border-radius:28px;background:radial-gradient(120% 45% at 100% 0%,rgba(255,255,255,.12),transparent 60%),linear-gradient(112deg,transparent 30%,rgba(255,255,255,.06) 46%,transparent 62%),var(--mt-grain),linear-gradient(180deg,#141416,#08080a 45%,#0d0d0f);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(0,0,0,.7),0 20px 60px rgba(0,0,0,.65)}
+html body[data-view=done] .view[data-view=done] .glass{background:radial-gradient(120% 45% at 100% 0%,rgba(255,255,255,.1),transparent 60%),var(--mt-grain),linear-gradient(180deg,#141416,#08080a 45%,#0d0d0f)}
+html body .tabs{border:1px solid rgba(255,255,255,.3);background:var(--mt-grain),linear-gradient(180deg,#151517,#070708 55%,#0e0e10);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.18),0 0 0 1px rgba(0,0,0,.7),0 10px 30px rgba(0,0,0,.6)}
+html body .tabs .cd div{border:1px solid rgba(255,255,255,.22);background:linear-gradient(180deg,#0b0b0c,#030304);box-shadow:inset 0 1px 3px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.1)}
+/* metal pill buttons */
+html body .btn,html body .nstabs button,html body .tabs .cd+button,html body .cside button,html body .lbt,html body .fback,html body .lchip,html body .mc button{position:relative;border:1px solid var(--mt-edge);border-radius:18px;color:#f2f3f5;letter-spacing:.2em;text-shadow:0 1px 2px rgba(0,0,0,.85);background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);box-shadow:var(--mt-bevel)}
+html body .btn::before,html body .nstabs button::before,html body .cside button::before{content:"";position:absolute;top:-1px;left:24%;right:24%;height:2px;border-radius:2px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent)}
+html body .btn::after,html body .nstabs button::after,html body .cside button::after{content:"";position:absolute;bottom:-1px;left:52%;right:8%;height:2px;border-radius:2px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent)}
+html body .btn:not(:disabled):hover,html body .nstabs button:hover,html body .cside button:hover{filter:brightness(1.12);border-color:rgba(255,255,255,.55)}
+/* bright chrome = primary / selected */
+html body .btn.solid,html body .nstabs button[aria-pressed=true],html body .cside button[aria-pressed=true],html body .tabs button.on,html body .tabs button[aria-pressed=true],html body .seg input:checked+span{color:#1a1b1d;text-shadow:0 1px 0 rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.9);background:var(--mt-chrome);box-shadow:var(--mt-bevel-on)}
+html body .btn.solid::after,html body .nstabs button[aria-pressed=true]::after,html body .cside button[aria-pressed=true]::after{display:none}
+html body .btn:disabled{opacity:.45;filter:saturate(.5)}
+/* batch/segment tabs inside sections (not the countdown bar) */
+html body .tabs button{border:1px solid var(--mt-edge);border-radius:16px;background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);color:#cfd1d6;box-shadow:var(--mt-bevel)}
+html body .seg span{border:1px solid var(--mt-edge);border-radius:16px;background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);color:#cfd1d6;box-shadow:var(--mt-bevel)}
+/* inputs: recessed metal */
+html body .fld input,html body .fld select,html body .fld textarea,html body .bin,html body .fhead input,html body .ltime input,html body .ltime select,html body #lcI{border:1px solid rgba(255,255,255,.3);border-radius:16px;background:linear-gradient(180deg,#050506,#0f1012);box-shadow:inset 0 2px 5px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.12)}
+html body .fld input:focus,html body .fld select:focus,html body .fld textarea:focus,html body .bin:focus{outline:0;border-color:rgba(255,255,255,.75);box-shadow:inset 0 2px 5px rgba(0,0,0,.85),0 0 0 2px rgba(255,255,255,.14)}
+/* inner cards, gates, drop zones, inputs */
+html body .nscard,html body .wallet,html body .codebox,html body .mi-gate,html body .mi-drop,html body .mi-frame,html body .mi-note,html body .lkst,html body #nsMsgs,html body #spChat,html body .mc,html body .mc>div,html body .mstat div,html body .wi{border:1px solid rgba(255,255,255,.26);border-radius:20px;background:var(--mt-grain),linear-gradient(180deg,#0e0e10,#050506);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 16px rgba(0,0,0,.5)}
+html body .view input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),html body .view textarea,html body .view select{border:1px solid rgba(255,255,255,.3);border-radius:16px;background:linear-gradient(180deg,#050506,#0f1012);box-shadow:inset 0 2px 5px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.12)}
+html body .view input:focus,html body .view textarea:focus,html body .view select:focus{outline:0;border-color:rgba(255,255,255,.75)}
+html body button.mi-tool,html body label.mi-alt,html body .fback{position:relative;border:1px solid var(--mt-edge);border-radius:18px;color:#f2f3f5;background:var(--mt-sheen),var(--mt-grain),var(--mt-dark);box-shadow:var(--mt-bevel)}
+html body .view button:not(.btn):not(.fback):not(.mi-tool):not([aria-pressed]):not(.on):not([class*=vt-]):not([class*=ar-]){border-color:var(--mt-edge)}
+/* Spore / Conclave: no logo behind the panels */
+html body[data-view=spore] #stage,html body[data-view=conclave] #stage{visibility:hidden;pointer-events:none}
 </style>
 </head>
 <body>
