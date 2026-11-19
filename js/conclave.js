@@ -40,7 +40,7 @@ function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resol
   if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
 Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
 /* Batch gateway (conclave-batch): list/create/join/random/start/leave are all decided by the server, same as node sync and spore. */
-Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{if(window.parent!==window){if(action==="cb_leave")parent.postMessage({clv:"red",op:"leave"},"*");else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)parent.postMessage({clv:"red",op:"room",batch:String(data.batch).slice(0,64)},"*")}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/conclave-batch",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
+Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{if(window.parent!==window){if(action==="cb_leave")parent.postMessage({clv:"red",op:"leave"},"*");else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)parent.postMessage({clv:"red",op:"room",batch:String(data.batch).slice(0,64)},"*")}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/"+(/^cg_/.test(action)?"conclave-game":"conclave-batch"),{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
 setInterval(()=>{if(_ok)recheck(true)},60000);
@@ -246,14 +246,6 @@ const T=[["start","Gathering","◬"],
 ["dept","Senate","♜",260,3],["event","Omen","✺"],["dept","Tribunal","⚔",300,3],["dept","Observ.","✧",320,4],["dept","Pyramid","▲",360,4],["dept","Citadel","♛",400,4],["dept","Obelisk","⌖",450,4]];
 const mx=(p,k)=>G.P.every(q=>q[k]<=p[k]);
 const OBJ=[{t:"Own a complete Order (all 4 holdings)",f:p=>[0,1,2,3,4].some(g=>grp(g).every(i=>G.own[i]==p.i))},{t:"Hold 8 properties",f:p=>cnt(p)>=8},{t:"Finish with the most cash",f:p=>mx(p,"cash")},{t:"Finish with the most Influence",f:p=>mx(p,"inf")},{t:"Collect $800M in tolls",f:p=>p.earned>=800}];
-const PROPS=()=>[{t:"Raise the tithes",d:"Every toll rises by $25M.",fn:()=>G.fl.toll=25},{t:"Higher dues",d:"Passing the Gathering pays $350M.",fn:()=>G.fl.sal=350},{t:"Abolish tribute",d:"Tribute spaces become free.",fn:()=>G.fl.levy=0},{t:"Emergency powers",d:"The Grand Master receives $250M.",fn:()=>G.P[G.chair].cash+=250}].sort(()=>Math.random()-.5);
-const EV=[["The Lights Go Out","Everyone loses 1 Influence.",p=>G.P.forEach(q=>q.inf=Math.max(0,q.inf-1))],
-["Tithe Demanded","The leader pays $150M into the Treasury.",p=>pay(G.P[leader()],150)],
-["Offerings Arrive","Every member gains $100M.",p=>G.P.forEach(q=>q.cash+=100)],
-["A Leak in the Order","The richest member pays $150M into the Treasury.",p=>pay(G.P.reduce((b,q)=>q.cash>b.cash?q:b),150)],
-["Hidden Inheritance","The mover gains $200M.",p=>p.cash+=200],
-["Inquisition","The mover pays $50M per property held.",p=>pay(p,50*cnt(p))],
-["A Patron Is Revealed","The mover gains 2 Influence.",p=>p.inf+=2]];
 let G=null,LEN=999,GEN=0;const MINP=4;const GAME_MS=30*60000,AFK_MS=30000;
 const pos=i=>i<=8?[9,9-i]:i<=16?[17-i,1]:i<=24?[1,i-15]:[i-23,9];
 const grp=g=>T.map((t,i)=>t[0]=="dept"&&t[4]==g?i:-1).filter(i=>i>=0);
@@ -262,58 +254,65 @@ const score=(p,e)=>p.cash+G.own.reduce((s,o,i)=>o==p.i?s+T[i][3]:s,0)+p.inf*150+
 const leader=()=>G.P.reduce((b,p)=>score(p)>score(G.P[b])?p.i:b,0);
 const say=s=>G.log.unshift(s);
 const toll=i=>{const o=G.own[i];return(Math.round(T[i][3]*.05)*5+G.fl.toll)*(grp(T[i][4]).every(k=>G.own[k]==o)?2:1)};
-function pay(p,a,to=-1){a=Math.min(p.cash,a);p.cash-=a;if(to>=0){G.P[to].cash+=a;G.P[to].earned+=a}else G.pot+=a;return a}
 function setLen(n){LEN=n;menu()}
 let _rest="";function setRest(h){if(h===_rest)return;_rest=h;$("#rest").innerHTML=h}
-const hdrT=()=>{const t=Math.max(0,G.end-Date.now()),m=Math.floor(t/60000),sc=Math.floor(t/1000)%60;return `Grand Master: ${G.P[G.chair].n} · Treasury ${fmt(G.pot)}`+(G.ph=="over"?"":` · ${m}:${String(sc).padStart(2,"0")} left`)};
+const hdrT=()=>{const t=Math.max(0,G.end-Date.now()-(G.off||0)),m=Math.floor(t/60000),sc=Math.floor(t/1000)%60;return `Grand Master: ${G.P[G.chair].n} · Treasury ${fmt(G.pot)}`+(G.ph=="over"?"":` · ${m}:${String(sc).padStart(2,"0")} left`)};
 function menu(){GEN++;G=null;_rest="";$("main").innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:42px">CONCLAVE</div><p class="sub">The Inner Circle convenes. Only one becomes Grand Master.</p><div class="card"><p style="margin:0 0 8px">Walk the hidden halls of the Order. Acquire holdings, collect tribute, survive omens and vote on decrees that bend the rules. Your mandate is secret, and so are your rivals’.</p><p class="eb" style="margin:16px 0 8px">Length</p><div class="dock"><button class="pri" style="pointer-events:none">Long · 30 minutes</button></div><p class="eb" style="margin:16px 0 8px">Play with other members</p><div class="dock"><button class="pri" data-act="batchUI">Batches · create or join</button></div><p class="note" style="margin:10px 0 0">Real members only. A game needs at least ${MINP} members in the batch, and every seat is a real person. Live chat is inside your batch.</p></div>`}
-function start(n,names){if(!window.CLOK)return;GEN++;_rest="";G={end:Date.now()+GAME_MS,away:0,r:1,R:LEN,cur:0,chair:0,ph:"",pot:0,log:[],dice:[0,0],sel:null,fl:{toll:0,sal:200,levy:100},own:Array(32).fill(-1),hist:{},alert:"",pi:0,props:PROPS(),P:[]};
-for(let i=0;i<n;i++)G.P.push({i,n:(names&&names[i]&&String(names[i]).replace(/[^\w]/g,"").slice(0,16))||NAMES[i],cash:1500,inf:0,pos:0,ob:rnd(OBJ.length),earned:0});say("The Conclave is called to order.");turn()}
-async function turn(){const p=G.P[G.cur];if(p.out){endTurn();return}G.ph=(p.i||G.away)?"wait":"roll";G.sel=null;render();if(p.i){await sleep(400);roll(p)}else if(G.away)awayTurn(p)}
-async function sellAll(p){const mine=G.own.map((x,k)=>x==p.i?k:-1).filter(k=>k>=0);if(!mine.length)return;say(`${p.n} is inactive. ${mine.length>1?"Their holdings go":"Their holding goes"} to bidding.`);render();await sleep(500);for(const k of mine){if(G.own[k]==p.i)await auction(k,p)}}
-async function awayTurn(p){await sellAll(p);if(!G.away){G.ph="roll";render();return}await sleep(300);roll(p)}
-async function roll(p){const a=1+rnd(6),b=1+rnd(6);G.dice=[a,b];G.ph="move";G.sel=null;G.rolling=1;render();await sleep(450);G.rolling=0;
-for(let s=0;s<a+b;s++){p.pos=(p.pos+1)%32;if(!p.pos){p.cash+=G.fl.sal;p.inf++;say(`${p.n} passed the Gathering (+${fmt(G.fl.sal)}, +1 Influence).`)}render();await sleep(90)}
-await land(p)}
-async function land(p){const i=p.pos,t=T[i],m=p.n;
-if(t[0]=="dept"){const o=G.own[i];
-if(o<0){if(!p.i&&G.away)say(`${m} is inactive and passed on ${t[1]}.`);else if(!p.i){G.ph="buy";render();return}
-if(p.cash>=t[3]+150&&Math.random()<.85){p.cash-=t[3];G.own[i]=p.i;say(`${m} acquired ${t[1]} for ${fmt(t[3])}.`)}else say(`${m} passed on ${t[1]}.`)}
-else if(o==p.i)say(`${m} inspected ${t[1]}, already held.`);
-else{const a=await settle(p,i,o),h=G.hist[i]||(G.hist[i]={sum:0,n:0});h.sum+=a;h.n++;h.last={who:m,amt:a,r:G.r};if(o==0){G.flash=i;G.hold=1000;G.alert=`${m} paid you ${fmt(a)} at ${t[1]}.`}say(`${m} paid ${fmt(a)} toll to ${G.P[o].n} at ${t[1]}.`)}}
-else if(t[0]=="event"){const e=EV[rnd(EV.length)];e[2](p);say(`<b>${e[0]}</b>: ${e[1]} (${m})`)}
-else if(t[0]=="levy")say(`${m} paid ${fmt(pay(p,G.fl.levy))} in tribute to the Treasury.`);
-else if(t[0]=="audit")say(`${m} paid ${fmt(pay(p,100))} to the Inquisition.`);
-else if(t[0]=="pot"){p.cash+=G.pot;say(`${m} claimed ${fmt(G.pot)} from the Treasury.`);G.pot=0}
-else if(t[0]=="rest"){p.cash+=50;say(`${m} rested in the Sanctum (+$50M).`)}
-else if(t[0]=="vote"){G.vote=G.props[G.pi++%G.props.length];if(!p.i&&G.away){cast(0);return}G.ph="vote";render();return}
-else say(`${m} returned to the Gathering.`);
-render();await sleep(G.hold||400);G.hold=0;endTurn()}
-async function settle(p,i,o){const need=toll(i);
-while(p.cash<need&&G.own.includes(p.i)){const mine=G.own.map((x,k)=>x==p.i?k:-1).filter(k=>k>=0);let k;
-if(p.i||G.away){const gap=need-p.cash;k=mine.slice().sort((a,b)=>T[a][3]-T[b][3]).find(k=>T[k][3]*.6>=gap)??mine.reduce((b,k)=>T[k][3]>T[b][3]?k:b);say(`${p.n} cannot cover the ${fmt(need)} toll and puts ${T[k][1]} up for bidding.`);render();await sleep(600)}
-else{G.ph="pick";G.need=need;render();k=await new Promise(r=>G.pickRes=r);if(k<0){G.ph="move";break}}
-await auction(k,p)}
-G.ph="move";return pay(p,need,o)}
-async function auction(k,seller){const t=T[k],val=t[3],floor=Math.max(10,Math.round(val*.4/5)*5),step=Math.max(10,Math.round(val*.08/5)*5),out=new Set(),vals={};
-G.P.forEach(q=>vals[q.i]=val*(.6+Math.random()*.55));
-const A=G.auc={k,seller:seller.i,bid:0,top:-1,ask:0,waiting:0};G.ph="bid";say(`${t[1]} goes to bidding. Opening bid ${fmt(floor)}.`);render();await sleep(500);
-for(let r=0;r<14;r++){let up=false;
-for(const q of G.P){if(q.i==seller.i||q.i==A.top||q.out||out.has(q.i))continue;const next=A.top<0?floor:A.bid+step;if(next>q.cash)continue;let go;
-if(q.i)go=next<=vals[q.i]&&Math.random()<.85;
-else if(G.away){go=false;out.add(0)}
-else{A.ask=next;A.waiting=1;render();go=await new Promise(r=>G.bidRes=r);A.waiting=0;if(!go)out.add(0)}
-if(go){A.bid=next;A.top=q.i;up=true;say(`${q.i?q.n+" bids":"You bid"} ${fmt(next)} for ${t[1]}.`);render();await sleep(550)}}
-if(!up)break}
-if(A.top<0){const v=Math.round(val*.5);seller.cash+=v;G.own[k]=-1;say(`No bids. The Order reclaims ${t[1]} and pays ${seller.n} ${fmt(v)}.`)}
-else{const w=G.P[A.top];w.cash-=A.bid;seller.cash+=A.bid;G.own[k]=w.i;say(`<b>${t[1]}</b> sold to ${w.n} for ${fmt(A.bid)}.`)}
-G.auc=null;G.ph="move";render();await sleep(600)}
-function pickProp(k){G.pickRes&&G.pickRes(k)}
-function bidAns(v){G.bidRes&&G.bidRes(v)}
-function buy(y){const p=G.P[0],t=T[p.pos];if(y&&p.cash>=t[3]){p.cash-=t[3];G.own[p.pos]=0;say(`You acquired ${t[1]} for ${fmt(t[3])}.`)}else say(`You passed on ${t[1]}.`);endTurn()}
-function cast(y){let a=0,b=0;const vs=G.P.map(p=>p.i?Math.random()<.5:y==1);G.P.forEach((p,k)=>{const w=p.i==G.chair?2:1;vs[k]?a+=w:b+=w});
-const ok=a>b;G.P.forEach((p,k)=>{if(vs[k]==ok)p.inf++});say(`<b>${G.vote.t}</b>: ${a} aye, ${b} nay. ${ok?"Decree passed":"Decree failed"}. The majority gains 1 Influence.`);if(ok)G.vote.fn();endTurn()}
-function endTurn(){G.ph="";G.flash=null;G.cur++;if(G.cur>=G.P.length){G.cur=0;G.r++;if(G.r>G.R||Date.now()>=G.end){G.r=Math.min(G.r-1,G.R);G.ph="over";render();return}G.chair=leader();G.P[G.chair].inf++;say(`Round ${G.r}. Grand Master: ${G.P[G.chair].n} (+1 Influence).`)}turn()}
+/* ---- server-authoritative game: the server rolls the dice and runs every rule (conclave-game). This page only shows the state and sends actions. ---- */
+let GM=null;
+function gStop(){if(!GM)return;clearInterval(GM.pt);const c=GM.ch;GM.ch=null;GM.dead=true;if(c&&BT.cl){try{BT.cl.removeChannel(c)}catch(e){}}GM=null}
+/* seats are rotated so that you are always seat 0 ("You"), the same view the board always had */
+function gAdopt(v){if(!GM||!v||!v.s||!Array.isArray(v.s.P))return;
+ if(typeof v.q==="number"){if(v.q<GM.q)return;GM.q=v.q}
+ if(typeof v.ob==="number")GM.ob=v.ob;
+ const s=v.s,n=s.P.length,me=GM.me,R=i=>i<0?i:(i-me+n)%n,first=!G;
+ const P=new Array(n);s.P.forEach(p=>{const j=R(p.i);P[j]={i:j,n:p.n,cash:p.cash,inf:p.inf,pos:p.pos,out:!!p.out,away:!!p.away,ob:typeof p.ob==="number"?p.ob:0,earned:p.earned||0}});
+ P[0].ob=GM.ob;
+ const own=s.own.map(o=>R(o)),mine=s.cur===me,ph0=s.ph;let ph="wait";
+ if(ph0==="over")ph="over";
+ else if(ph0==="roll"&&mine)ph="roll";
+ else if(ph0==="buy"&&mine)ph="buy";
+ else if(ph0==="pick"&&mine)ph="pick";
+ else if(ph0==="bid"&&s.auc)ph="bid";
+ else if(ph0==="vote"&&s.vote&&!(s.vote.done||[]).includes(me)&&!P[0].away&&!P[0].out)ph="vote";
+ const g=G||{sel:null,alert:"",flash:null,rolling:0};
+ g.end=s.end;g.R=s.R;g.r=s.r;g.cur=R(s.cur);g.chair=R(s.chair);g.pot=s.pot;g.log=s.log||[];g.dice=s.dice||[0,0];g.fl=s.fl;g.own=own;g.hist=s.hist||{};g.P=P;
+ g.vote=s.vote?{t:s.vote.t,d:s.vote.d,done:(s.vote.done||[]).map(R)}:null;
+ g.need=s.tc?s.tc.need:0;g.sp=ph0;g.off=(typeof s.t==="number"?s.t:Date.now())-Date.now();g.dl=s.dl||0;g.away=P[0].away?1:0;g.out=P[0].out;
+ g.auc=s.auc?{k:s.auc.k,seller:R(s.auc.seller),bid:s.auc.bid,top:R(s.auc.top),ask:s.auc.next,waiting:s.auc.ask===me?1:0}:null;
+ g.ph=ph;if(g.sel!=null&&ph0!=="over"&&false)g.sel=null;
+ G=g;
+ const fx=s.fx;
+ if(fx&&typeof fx.id==="number"){
+  if(GM.fx!==fx.id){const was=GM.fx;GM.fx=fx.id;if(was!==null&&fx.roll){g.rolling=1;g.sel=null;setTimeout(()=>{if(G===g){g.rolling=0;render()}},650)}}
+  if(fx.toll){const k=fx.id+":"+fx.toll.tile+":"+fx.toll.amt;if(GM.tk!==k){const was=GM.tk;GM.tk=k;if(was!==null&&R(fx.toll.owner)===0&&fx.toll.who!==me&&P[R(fx.toll.who)]){g.flash=fx.toll.tile;g.alert=`${P[R(fx.toll.who)].n} paid you ${fmt(fx.toll.amt)} at ${T[fx.toll.tile][1]}.`;setTimeout(()=>{if(G===g){g.flash=null;render()}},1400)}}}
+ }
+ if(GM.fx===null||GM.fx===undefined)GM.fx=fx&&typeof fx.id==="number"?fx.id:0;
+ if(GM.tk===null||GM.tk===undefined)GM.tk=fx&&fx.toll?(fx.id+":"+fx.toll.tile+":"+fx.toll.amt):"";
+ if(g.ph==="over"){clearInterval(GM.pt);GM.pt=0}
+ render()}
+async function gPoll(){if(!GM||GM.dead||GM.busy)return;GM.busy=1;const gm=GM;
+ try{const r=await window.CLCALL("cg_tick",{batch:BT.sn});if(GM!==gm)return;
+  if(r&&r.s){gm.bad=0;gAdopt(r);if(G&&G.away&&!G.out&&G.ph!=="over")gAct("here",0)}
+  else if(r&&(r.gone||/no game is running|not in this game/i.test(String(r.error||"")))){if(++gm.bad>=3&&G&&G.ph!=="over"){gm.bad=0;await gBackToLobby("The game has ended.")}}}
+ catch(e){}finally{gm.busy=0}}
+async function gBackToLobby(msg){const sn=BT.sn;if(!BT.ch){menu();return}gStop();BT.playing=false;G=null;_rest="";bLobby();const w=$("#bWait");if(w){w.hidden=false;w.textContent=msg||""}}
+async function gAct(a,v){if(!GM||GM.dead||GM.act)return;GM.act=1;const gm=GM;
+ try{const r=await window.CLCALL("cg_act",{batch:BT.sn,a,v});if(GM!==gm)return;
+  if(r&&r.s)gAdopt(r);
+  if(r&&r.error&&G){G.alert=r.error;render();setTimeout(()=>{if(G&&G.alert===r.error){G.alert="";render()}},2500)}}
+ catch(e){}finally{gm.act=0}}
+function gSetup(r){if(!BT.ch||!r||!r.gk||typeof r.me!=="number"||!r.s)return;
+ gStop();GEN++;_rest="";G=null;BT.playing=true;
+ GM={me:r.me,gk:r.gk,q:0,ob:typeof r.ob==="number"?r.ob:0,fx:null,tk:null,pt:0,busy:0,act:0,bad:0,dead:false,ch:null};
+ const gm=GM;gAdopt(r);
+ try{const ch=BT.cl.channel("conclave:g:"+r.gk,{config:{private:true,broadcast:{self:false}}});gm.ch=ch;
+  ch.on("broadcast",{event:"state"},p=>{if(GM===gm&&p&&p.payload&&p.payload.s)gAdopt({q:p.payload.q,s:p.payload.s})});
+  ch.subscribe(()=>{})}catch(e){}
+ gm.pt=setInterval(gPoll,2500)}
+/* anyone in the batch is pulled into the game when the host starts it */
+async function bEnter(){if(!BT.ch||BT.playing||BT.entering)return;BT.entering=1;
+ try{const sn=BT.sn,r=await window.CLCALL("cg_join",{batch:sn});if(r&&r.ok&&r.gk&&BT.ch&&BT.sn===sn&&!BT.playing)gSetup(r)}catch(e){}finally{BT.entering=0}}
 const PIP={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]},ORI={1:[0,0],2:[0,-90],3:[-90,0],4:[90,0],5:[0,90],6:[0,180]};
 const face=(v,t)=>`<div class="fc" style="transform:${t} translateZ(calc(var(--d)/2))">${[1,2,3,4,5,6,7,8,9].map(n=>`<span>${PIP[v].includes(n)?"<i></i>":""}</span>`).join("")}</div>`;
 const die=(v,n)=>{v=v||1;const[x,y]=ORI[v];return `<div class="dw" style="left:calc(50% + ${n?1:-1}*var(--S)*.105);transform:translateZ(calc(var(--d)*.55)) rotateZ(${n?16:-12}deg)"><div class="cube${G.rolling?" tum":""}" style="--x:${x}deg;--y:${y}deg">${face(1,"")}${face(6,"rotateY(180deg)")}${face(2,"rotateY(90deg)")}${face(5,"rotateY(-90deg)")}${face(3,"rotateX(90deg)")}${face(4,"rotateX(-90deg)")}</div></div>`};
@@ -329,8 +328,8 @@ if(G.ph=="buy")return `<span>${t[1]} · ${fmt(t[3])}</span><button class="pri" $
 if(G.ph=="vote")return `<div style="text-align:center;width:100%"><div class="wm" style="font-size:20px">${G.vote.t}</div><p class="sub">${G.vote.d} The Grand Master’s vote counts double; ties fail.</p><button class="pri" data-act="cast" data-v="1">Aye</button> <button data-act="cast" data-v="0">Nay</button></div>`;
 if(G.ph=="pick"){const mine=G.own.map((x,k)=>x==0?k:-1).filter(k=>k>=0);return `<div style="text-align:center;width:100%"><div class="wm" style="font-size:18px">Toll due ${fmt(G.need)}</div><p class="sub">You hold ${fmt(p.cash)}. Put a holding up for bidding to raise the difference.</p><div class="dock">${mine.map(k=>`<button class="pri" data-act="pick" data-v="${k}">${T[k][1]} · ${fmt(T[k][3])}</button>`).join("")}<button data-act="pick" data-v="-1">Pay what I have</button></div></div>`}
 if(G.ph=="bid"&&G.auc){const a=G.auc,t=T[a.k],top=a.top<0?"No bids yet":"Top bid "+fmt(a.bid)+" · "+G.P[a.top].n;return a.waiting?`<div style="text-align:center;width:100%"><div class="wm" style="font-size:18px">${t[1]} up for bidding</div><p class="sub">${top} · ${G.P[a.seller].n} is selling</p><div class="dock"><button class="pri" data-act="bid" data-v="1">Bid ${fmt(a.ask)}</button><button data-act="bid" data-v="0">Pass</button></div></div>`:`<span class="sub" style="margin:0">${t[1]} is up for bidding · ${top}…</span>`}
-if(G.ph=="over"){const r=[...G.P].sort((a,b)=>score(b,1)-score(a,1));return `<div style="width:100%"><h2 class="wm" style="font-size:24px">${r[0].i?r[0].n+" is":"You are"} the new Grand Master</h2><table><tr><th>Member</th><th>Secret mandate</th><th>Worth</th></tr>${r.map(q=>`<tr><td>${q.n}</td><td>${OBJ[q.ob].t} ${OBJ[q.ob].f(q)?"✓":"✗"}</td><td><b>${fmt(score(q,1))}</b></td></tr>`).join("")}</table><p style="text-align:center"><button class="pri" data-act="menu">Play again</button></p></div>`}
-return `<span class="sub" style="margin:0">${G.P[G.cur].i?G.P[G.cur].n+" is taking a turn…":""}</span>`}
+if(G.ph=="over"){const r=[...G.P].sort((a,b)=>score(b,1)-score(a,1));return `<div style="width:100%"><h2 class="wm" style="font-size:24px">${r[0].i?r[0].n+" is":"You are"} the new Grand Master</h2><table><tr><th>Member</th><th>Secret mandate</th><th>Worth</th></tr>${r.map(q=>`<tr><td>${q.n}</td><td>${OBJ[q.ob].t} ${OBJ[q.ob].f(q)?"✓":"✗"}</td><td><b>${fmt(score(q,1))}</b></td></tr>`).join("")}</table><p style="text-align:center"><button class="pri" data-act="endGame">Play again</button></p></div>`}
+const wt=G.out?"You left this game.":G.sp=="vote"?"Waiting for the other members to vote…":G.sp=="bid"?"Bidding is under way…":G.cur==0?"…":G.P[G.cur].n+" is taking a turn…";return `<span class="sub" style="margin:0">${wt}</span>`}
 function holdings(){const mine=G.own.map((o,i)=>o==0?i:-1).filter(i=>i>=0),tot=mine.reduce((s,i)=>s+(G.hist[i]?G.hist[i].sum:0),0);
 const cards=mine.map(i=>{const t=T[i],h=G.hist[i],g=grp(t[4]),have=g.filter(k=>G.own[k]==0).length;
 return `<div class="hc${G.flash==i?" hit":""}"><i class="gs" style="background:${GRP[t[4]][1]}"></i><div class="hn"><img class="hi" src="${ICON[i]}" alt=""><b>${t[1]}</b></div><small>${GRP[t[4]][0]} · ${have}/${g.length}${have==g.length?" · toll ×2":""}</small><div class="ht">${fmt(toll(i))}<em>toll</em></div><small>Collected ${fmt(h?h.sum:0)} · ${h?h.n:0} visit${h&&h.n==1?"":"s"}</small><div class="hl${h&&h.last.r==G.r?" now":""}">${h?h.last.who+" paid "+fmt(h.last.amt)+" · round "+h.last.r:"No visitors yet"}</div></div>`}).join("");
@@ -347,7 +346,7 @@ if(G.rolling&&!c.dataset.r){c.classList.remove("tum");void c.offsetWidth;c.class
 function gameChat(){if(!BT.ch)return"";return `<div class="card"><div class="eb" style="text-align:left;margin:0 0 8px">Batch chat</div><div class="chat" id="gMsgs"></div><form class="crow" id="gCf" autocomplete="off"><input class="bin" id="gCi" maxlength="140" placeholder="Message your batch"><button class="pri" type="submit">Send</button></form></div>`}
 function gameWire(){const lv=$("#gLeave");if(lv){let t=0;lv.onclick=()=>{if(G&&G.ph!="over"&&!lv.dataset.sure){lv.dataset.sure=1;lv.textContent="Tap again to leave the game";t=setTimeout(()=>{delete lv.dataset.sure;lv.textContent="Leave game"},4000);return}clearTimeout(t);leaveGame()}}
  const f=$("#gCf");if(f){f.addEventListener("submit",e=>{e.preventDefault();const i=$("#gCi"),x=i.value.trim();if(!x||!BT.ch)return;i.value="";window.CLCALL("cb_chat",{batch:BT.sn,t:x})});bChat()}}
-async function leaveGame(){GEN++;G=null;_rest="";await batchLeave();menu()}
+async function leaveGame(){const sn=BT.sn,live=G&&G.ph!="over";if(sn&&live){try{await window.CLCALL("cg_leave",{batch:sn})}catch(e){}}GEN++;G=null;_rest="";await batchLeave();menu()}
 function render(){if(!G)return;const me=G.P[0],o=G.ph=="over",m=$("main");
 if(!$("#stg"))m.innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm">CONCLAVE</div><div class="sub" id="hdr"></div><div class="stage" id="stg">${board()}</div><div id="rest"></div>${gameChat()}<div class="dock" style="margin:6px 0 24px"><button id="gLeave" type="button">Leave game</button></div>`;gameWire();
 $("#hdr").textContent=hdrT();upd();
@@ -406,7 +405,10 @@ async function bCreate(){const n=bclean($("#bCn").value),priv=$("#bCf").checked,
  if(priv&&k.length<4){er.textContent="Friends key needs 4+ characters.";return}er.textContent="";
  if(priv)return bJoin("f-"+n.toLowerCase()+"-"+bhash(n.toLowerCase()+"|"+k),n,false,er);
  return bJoin("p-"+n.toLowerCase(),n,true,er,"cb_create")}
-function bBeat(){clearInterval(BT.bt);BT.bt=setInterval(async()=>{if(!BT.ch||!BT.sn){clearInterval(BT.bt);return}const r=await window.CLCALL("cb_beat",{batch:BT.sn});if(r&&r.gone&&!BT.playing){await batchLeave(true);batchUI("S");const e=$("#bRe");if(e)e.textContent="That batch closed. Pick another."}},5000)}
+function bBeat(){clearInterval(BT.bt);BT.bt=setInterval(async()=>{if(!BT.ch||!BT.sn){clearInterval(BT.bt);return}const ch=BT.ch,r=await window.CLCALL("cb_beat",{batch:BT.sn});if(BT.ch!==ch)return;
+ if(r&&r.gone&&!BT.playing){await batchLeave(true);batchUI("S");const e=$("#bRe");if(e)e.textContent="That batch closed. Pick another.";return}
+ if(r&&r.ok){if(Array.isArray(r.members)){BT.members=r.members.slice(0,6);BT.host=!!r.host}
+  if(r.playing&&!BT.playing)bEnter();else if(!BT.playing)bLobbyUpdate()}},5000)}
 async function bJoin(id,name,pub,er,act,pre){
  if(BT.ch)await batchLeave(true);
  let sn=pub?name:id,joined=false;
@@ -414,29 +416,24 @@ async function bJoin(id,name,pub,er,act,pre){
   const r=pre||await window.CLCALL(act||(pub?"cb_join":"cb_friends"),{batch:sn});
   if(!r||!r.ok){if(er)er.textContent=(r&&r.error)||"Could not join the batch. Try again.";bpoll();return}
   joined=true;if(pub&&r.batch){name=r.batch;sn=r.batch;id="p-"+r.batch.toLowerCase()}
+  if(typeof r.key!=="string"||!r.key)throw new Error("no key");
   await bload();
-  const ch=BT.cl.channel("conclave:b:"+bhash(id),{config:{private:true,presence:{key:BME+"~"+BT.sid},broadcast:{self:true}}});
-  BT.id=id;BT.sn=sn;BT.name=name;BT.pub=pub;BT.playing=false;BT.msgs=[];BT.members=[];BT.host=false;BT.ch=ch;
-  ch.on("presence",{event:"sync"},bLobbyUpdate).on("broadcast",{event:"chat"},p=>{BT.msgs.push(p.payload);if(BT.msgs.length>40)BT.msgs.shift();bChat()}).on("broadcast",{event:"start"},p=>bOnStart(p.payload));
-  await bsub(ch);await ch.track({n:BME,k:BME+"~"+BT.sid,t:Date.now()});
-  bBeat();bLobby()}
+  const ch=BT.cl.channel("conclave:b:"+r.key,{config:{private:true,broadcast:{self:false}}});
+  BT.id=id;BT.sn=sn;BT.name=name;BT.pub=pub;BT.playing=false;BT.msgs=[];BT.err="";BT.mid=r.mid||"";BT.members=Array.isArray(r.members)?r.members.slice(0,6):[];BT.host=!!r.host;BT.ch=ch;
+  ch.on("broadcast",{event:"roster"},p=>{if(BT.ch===ch&&p&&p.payload&&Array.isArray(p.payload.m)){BT.members=p.payload.m.slice(0,6);bLobbyUpdate()}})
+   .on("broadcast",{event:"chat"},p=>{if(!p||!p.payload)return;BT.msgs.push(p.payload);if(BT.msgs.length>40)BT.msgs.shift();bChat()})
+   .on("broadcast",{event:"started"},()=>{bEnter()});
+  await bsub(ch);
+  bBeat();
+  if(r.playing){await bEnter();if(BT.playing)return}
+  bLobby()}
  catch(e){try{BT.ch&&BT.cl.removeChannel(BT.ch)}catch(_){}BT.ch=null;if(joined)try{window.CLCALL("cb_leave",{batch:sn})}catch(_){}if(er)er.textContent="Could not join the batch. Try again."}}
-function bLobbyUpdate(){if(!BT.ch)return;const st=BT.ch.presenceState(),m=[];Object.values(st).forEach(a=>a.forEach(x=>x&&x.n&&m.push(x)));m.sort((a,b)=>a.t-b.t||(a.k<b.k?-1:1));
- BT.members=m;bWatch(m);BT.host=!!m.length&&m[0].k==BME+"~"+BT.sid;
- if(!BT.playing&&m.length>6&&m.findIndex(x=>x.k==BME+"~"+BT.sid)>=6){batchLeave();batchUI("S");const r=$("#bRe");if(r)r.textContent="That batch is full.";return}
- bAdvert();const mem=$("#bMem");if(!mem)return;
+function bLobbyUpdate(){if(!BT.ch)return;const m=BT.members||[];
+ BT.host=!!m.length&&!!BT.mid&&m[0].id===BT.mid;
+ const mem=$("#bMem");if(!mem)return;
  mem.innerHTML=m.slice(0,6).map((x,i)=>`<span class="${i==0?"h":""}">${i==0?"◬ ":""}${esc(x.n)}</span>`).join("");
  $("#bCnt").textContent=Math.min(m.length,6)+"/6 online";
- const go=$("#bGo"),w=$("#bWait"),enough=m.length>=MINP;go.hidden=!BT.host;go.disabled=!enough;w.hidden=BT.host&&enough;w.textContent=BT.host?`Waiting for ${MINP-m.length} more member${MINP-m.length==1?"":"s"}. At least ${MINP} are needed to start.`:"Waiting for the host to start."}
-/* a member who leaves a running game: after a short grace (reconnects), their holdings go back to the Order and they stop playing */
-function bWatch(m){if(!BT.playing||!BT.seats||!G||!G.P)return;const here=new Set(m.map(x=>x.n));
- BT.seats.forEach((nm,i)=>{if(i==0||!G.P[i]||G.P[i].out)return;
-  if(here.has(nm)){clearTimeout(BT.gone[nm]);BT.gone[nm]=0;return}
-  if(BT.gone[nm])return;
-  BT.gone[nm]=setTimeout(()=>{BT.gone[nm]=0;if(!G||!G.P||!G.P[i]||G.P[i].out||!BT.ch)return;
-   const still=new Set(Object.values(BT.ch.presenceState()).flat().map(x=>x&&x.n));if(still.has(nm))return;
-   let c=0;G.own.forEach((o,k)=>{if(o==i){G.own[k]=-1;c++}});G.P[i].out=true;
-   say(`${esc(nm)} left the Conclave.${c?` Their ${c==1?"holding returns":c+" holdings return"} to the Order.`:""}`);render()},6000)})}
+ const go=$("#bGo"),w=$("#bWait"),enough=m.length>=MINP;go.hidden=!BT.host;go.disabled=!enough;w.hidden=BT.host&&enough&&!BT.err;w.textContent=BT.err||(BT.host?`Waiting for ${MINP-m.length} more member${MINP-m.length==1?"":"s"}. At least ${MINP} are needed to start.`:"Waiting for the host to start.")}
 function bChat(){const h=BT.msgs.map(x=>`<p><b>${esc(x.n)}</b> ${esc(x.t)}</p>`).join("");["#bMsgs","#gMsgs"].forEach(k=>{const c=$(k);if(!c)return;c.innerHTML=h;c.scrollTop=c.scrollHeight})}
 function bLobby(){
  bShell(`<button class="bk" data-act="leaveBatch">‹ Leave batch</button><p class="eb" style="text-align:left;margin:0">${BT.pub?"Open batch":"Friends batch"}</p><div class="wm" style="text-align:left;font-size:28px;margin:2px 0 6px;text-indent:0">${esc(BT.name.toUpperCase())}</div>
@@ -446,12 +443,9 @@ function bLobby(){
  <div class="card"><div class="eb" style="text-align:left;margin:0 0 8px">Live chat</div><div class="chat" id="bMsgs"></div>
  <form class="crow" id="bCf2" autocomplete="off"><input class="bin" id="bCi" maxlength="140" placeholder="Message your batch"><button class="pri" type="submit">Send</button></form></div>`);
  $("#bCf2").addEventListener("submit",e=>{e.preventDefault();const t=$("#bCi").value.trim();if(!t||!BT.ch)return;$("#bCi").value="";window.CLCALL("cb_chat",{batch:BT.sn,t})});
- $("#bGo").onclick=async()=>{if(!BT.ch||!BT.host||BT.members.length<MINP)return;try{await window.CLCALL("cb_start",{batch:BT.sn})}catch(e){}if(!BT.ch)return;BT.ch.send({type:"broadcast",event:"start",payload:{m:BT.members.slice(0,6).map(x=>({n:x.n,k:x.k}))}})};
+ $("#bGo").onclick=async()=>{if(!BT.ch||!BT.host||BT.members.length<MINP)return;const b=$("#bGo");b.disabled=true;BT.err="";let r=null;try{r=await window.CLCALL("cg_start",{batch:BT.sn,len:LEN})}catch(e){}if(!BT.ch)return;if(r&&r.ok&&r.gk){gSetup(r);return}BT.err=(r&&r.error)||"Could not start the Conclave. Try again.";bLobbyUpdate()};
  bLobbyUpdate();bChat()}
-function bOnStart(p){if(!BT.ch||BT.playing||!p||!Array.isArray(p.m)||p.m.length<MINP||p.m.length>6)return;const me=BME+"~"+BT.sid;if(!p.m.some(x=>x.k==me))return;
- const nm=["You",...p.m.filter(x=>x.k!=me).map(x=>x.n)];
- BT.playing=true;BT.seats=nm;BT.gone={};bAdvert();start(nm.length,nm)}
-async function batchLeave(keepDir){const ch=BT.ch,sn=BT.sn;BT.ch=null;BT.sn="";BT.host=false;BT.playing=false;BT.members=[];clearInterval(BT.bt);if(sn){try{window.CLCALL("cb_leave",{batch:sn})}catch(e){}}if(ch){try{await ch.untrack()}catch(e){}try{BT.cl.removeChannel(ch)}catch(e){}}
+async function batchLeave(keepDir){const ch=BT.ch,sn=BT.sn;BT.ch=null;BT.sn="";BT.host=false;BT.playing=false;BT.members=[];BT.err="";clearInterval(BT.bt);gStop();if(sn){try{window.CLCALL("cb_leave",{batch:sn})}catch(e){}}if(ch){try{BT.cl.removeChannel(ch)}catch(e){}}
  if(!keepDir&&BT.dir){clearInterval(BT.dir);BT.dir=null}}
 
 /* ===== live chat: one room per 10-minute window; it clears itself when the window ends ===== */
@@ -507,32 +501,19 @@ intro();
  }catch(e){}
 })();
 
-/* ===== inactivity watchdog: 30s with no input while the game waits on you ===== */
+/* ===== inactivity: the server enforces the timers (30s to roll/buy/settle, 15s to vote/bid); this shows the countdown and brings you back on any tap ===== */
 (function(){
- let last=Date.now(),wkey="",wstart=Date.now(),busy=0;
  const pill=document.createElement("div");pill.id="afk";pill.style.cssText="position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;padding:8px 14px;border-radius:999px;background:#000;border:1px solid rgba(255,255,255,.3);color:#f0f1f4;font:500 12px var(--sans);letter-spacing:.08em;display:none;white-space:nowrap";document.body.appendChild(pill);
- const act=()=>{last=Date.now();if(typeof G!=="undefined"&&G&&G.away){G.away=0;say("You returned to the table.");render()}};
+ const act=()=>{if(typeof G!=="undefined"&&G&&G.away&&!G.out&&G.ph!="over"&&typeof gAct==="function")gAct("here",0)};
  ["pointerdown","keydown","touchstart"].forEach(e=>addEventListener(e,act,true));
- const waiting=()=>G&&!G.away&&G.P&&(G.ph=="roll"||G.ph=="buy"||G.ph=="vote"||G.ph=="pick"||(G.ph=="bid"&&G.auc&&G.auc.waiting));
+ const waiting=()=>G&&!G.away&&G.P&&G.dl&&(G.ph=="roll"||G.ph=="buy"||G.ph=="vote"||G.ph=="pick"||(G.ph=="bid"&&G.auc&&G.auc.waiting));
  setInterval(()=>{
   if(!G||!G.P){pill.style.display="none";return}
   const h=$("#hdr");if(h&&G.ph!="over"){const t=hdrT();if(h.textContent!==t)h.textContent=t}
-  if(!waiting()){pill.style.display="none";wkey="";return}
-  const k=G.ph+"|"+G.cur+"|"+G.r+"|"+(G.auc?G.auc.bid:"");
-  if(k!==wkey){wkey=k;wstart=Date.now()}
-  const left=Math.ceil((AFK_MS-(Date.now()-Math.max(last,wstart)))/1000);
-  if(left<=10&&left>0){pill.textContent="Your move · "+left+"s until your holdings go to bidding";pill.style.display="block"}else pill.style.display="none";
-  if(left<=0&&!busy){busy=1;pill.style.display="none";afk().finally(()=>busy=0)}
+  if(!waiting()){pill.style.display="none";return}
+  const left=Math.ceil((G.dl-(Date.now()+(G.off||0)))/1000);
+  if(left<=10&&left>0){pill.textContent="Your move · "+left+"s left";pill.style.display="block"}else pill.style.display="none";
  },1000);
- async function afk(){
-  const p=G.P[0],ph=G.ph;G.away=1;say("You went inactive. The Order acts in your name.");
-  if(ph=="roll"){awayTurn(p)}
-  else if(ph=="buy"){G.ph="wait";render();await sellAll(p);if(G.away)buy(0);else{G.ph="buy";render()}}
-  else if(ph=="vote"){G.ph="wait";render();await sellAll(p);if(G.away)cast(0);else{G.ph="vote";render()}}
-  else if(ph=="pick"){const mine=G.own.map((x,k)=>x==0?k:-1).filter(k=>k>=0);pickProp(mine.length?mine[0]:-1)}
-  else if(ph=="bid"){bidAns(0)}
-  render();
- }
 })();
 
 /* Delegated click handler: replaces the old inline onclick attributes so the page needs no inline-script allowance. */
@@ -540,11 +521,12 @@ document.addEventListener("click",function(e){const b=e.target&&e.target.closest
  switch(b.dataset.act){
   case"batchUI":batchUI();break;
   case"sel":G.sel=v;render();break;
-  case"roll":roll(G.P[0]);break;
-  case"buy":buy(v);break;
-  case"cast":cast(v);break;
-  case"pick":pickProp(v);break;
-  case"bid":bidAns(v);break;
+  case"roll":gAct("roll",0);break;
+  case"buy":gAct("buy",v);break;
+  case"cast":gAct("cast",v);break;
+  case"pick":gAct("pick",v);break;
+  case"bid":gAct("bid",v);break;
+  case"endGame":leaveGame();break;
   case"menu":menu();break;
   case"leaveMenu":batchLeave();menu();break;
   case"leaveBatch":batchLeave();batchUI("S");break;
