@@ -101,17 +101,17 @@ function veilExtract(buf){
   while(p+4<b.length&&b[p]===0xFF){const m=b[p+1];if(m===0xDA||m===0xD9)break;const len=(b[p+2]<<8)|b[p+3];
    if(m===0xEF&&VMAGIC.every((v,i)=>b[p+4+i]===v)){pl=b.slice(p+4,p+2+len);break}p+=2+len}}
  if(!pl||pl.length<10||!VMAGIC.every((v,i)=>pl[i]===v))return null;
- return pl[5]===0||(pl[5]===1&&pl.length>=54)?pl:null}
+ return pl[5]===0||((pl[5]===1||pl[5]===2)&&pl.length>=54)?pl:null}
 async function veilUnlock(pl,pass){
  const k0=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
- const k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:pl.slice(10,26),iterations:150000,hash:'SHA-256'},k0,{name:'AES-GCM',length:256},false,['decrypt']);
+ const k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:pl.slice(10,26),iterations:pl[5]===2?600000:150000,hash:'SHA-256'},k0,{name:'AES-GCM',length:256},false,['decrypt']);
  return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:pl.slice(26,38)},k,pl.slice(38)))}
 const veilDone=t=>`<details class="mi-sec" open id="miVeil"><summary><span>Veil Data</span><em>1</em></summary><dl class="mi-r"><dt>Message</dt><dd style="white-space:pre-wrap">${esc(t)}</dd></dl></details>`;
 function veilHTML(pl){
  if(pl[5]===0){let t='';try{t=new TextDecoder().decode(pl.slice(10))}catch(e){}return veilDone(t)}
  return `<details class="mi-sec" open id="miVeil"><summary><span>Veil Data</span><em>LOCKED</em></summary><dl class="mi-r"><dt>Status</dt><dd>${VLOCK}Locked. Passphrase required.</dd></dl><div class="mi-veilbox"><input class="nsin" id="miVpw" type="password" placeholder="Passphrase" autocomplete="off"><button class="btn solid" id="miVub" type="button">Unlock</button><div class="mi-verr" id="miVerr"></div></div></details>`}
 function veilWire(pl){
- if(pl[5]!==1)return;
+ if(pl[5]!==1&&pl[5]!==2)return;
  const go=async()=>{const pw=$('#miVpw').value,e=$('#miVerr'),b=$('#miVub');if(!pw){e.textContent='Enter the passphrase.';return}
   b.textContent='Unlocking…';e.textContent='';
   try{const t=await veilUnlock(pl,pw);hap('medium');$('#miVeil').outerHTML=veilDone(t)}
@@ -317,7 +317,7 @@ async function tailRead(f){const ti=await tailInfo(f);if(!ti)return null;
  const b=await u8(f.slice(f.size-16-ti.bl,f.size-16)),R={tl:ti.tl,pl:null,text:'',taken:null,mod:null},dec=d=>new TextDecoder().decode(d);let p=0;
  while(p+5<=b.length){const ty=b[p],l=rd(b,p+1);if(p+5+l>b.length)break;const d=b.subarray(p+5,p+5+l);
   if(ty===1)R.pl=d.slice();else if(ty===2)R.text=dec(d);else if(ty===3)R.taken=isoP(dec(d));else if(ty===4)R.mod=isoP(dec(d));p+=5+l}
- if(R.pl&&!(R.pl.length>=10&&VMAGIC.every((v,i)=>R.pl[i]===v)&&(R.pl[5]===0||(R.pl[5]===1&&R.pl.length>=54))))R.pl=null;
+ if(R.pl&&!(R.pl.length>=10&&VMAGIC.every((v,i)=>R.pl[i]===v)&&(R.pl[5]===0||((R.pl[5]===1||R.pl[5]===2)&&R.pl.length>=54))))R.pl=null;
  return R}
 /* cleanMedia: drops any veil tail and all tags; returns the clean bytes as parts. T={c:Date|null,m:Date|null} writes taken/modified times where the container has them. */
 async function cleanMedia(f,T){

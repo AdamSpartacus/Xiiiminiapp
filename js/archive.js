@@ -89,7 +89,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&document.
 const TTL=120000,TIMEOUT=12000;
 let OK=false,okAt=0,gating=false,uploading=false,Q=[],AL=[];
 function gateView(html){const g=$("auGate");g.hidden=false;g.innerHTML=html;$("auApp").hidden=true}
-function deny(msg,retry){gateView('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p>'+msg+'</p>'+(retry?'<button class="btn solid" type="button" id="auRetry">Try again</button>':''));
+function deny(msg,retry){gateView('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p>'+String(msg==null?'':msg).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p>'+(retry?'<button class="btn solid" type="button" id="auRetry">Try again</button>':''));
  const b=$("auRetry");if(b)b.onclick=()=>{okAt=0;enter()}}
 async function verify(){
  if(!document.body.classList.contains("owner"))return{k:"no"};

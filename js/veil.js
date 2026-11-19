@@ -14,7 +14,7 @@ const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 
 /* ---------- founder gate ---------- */
 function gateView(h){const g=$('vcGate'),a=$('vcApp');g.hidden=false;g.innerHTML=h;a.hidden=true}
-function deny(msg,retry){gateView('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p>'+msg+'</p>'+(retry?'<button class="btn solid" type="button" id="vcRetry">Try again</button>':''));
+function deny(msg,retry){gateView('<div class="mi-gi">'+LOCK+'</div><h3>Founders only</h3><p>'+String(msg==null?'':msg).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p>'+(retry?'<button class="btn solid" type="button" id="vcRetry">Try again</button>':''));
  const b=$('vcRetry');if(b)b.onclick=()=>{okAt=0;enter()}}
 async function verify(){
  if(V.config.demoMode)return{ok:1};
@@ -94,15 +94,15 @@ function list(buf){
    if(m===0xE1)l.push('EXIF/XMP');else if(m===0xFE)l.push('Comment');else if(m>=0xE0&&m<=0xEF)l.push('APP'+(m-0xE0));p+=2+len}}
  return l.length?l.join(', '):'none'}
 
-/* payload: "VEIL1"(5) mode(1) nonce(4) [salt16 iv12] data. mode 0 plain, 1 AES-256-GCM (PBKDF2-SHA256, 150k) */
+/* payload: "VEIL1"(5) mode(1) nonce(4) [salt16 iv12] data. mode 0 plain, 1 AES-256-GCM (PBKDF2-SHA256, 150k, legacy), 2 same with 600k */
 async function key(pass,salt){
  const k=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);
- return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt'])}
+ return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt'])}
 async function prep(text,pass){
  if(!pass)return{m:0,x:new Uint8Array(0),d:enc.encode(text)};
  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(pass,salt),enc.encode(text)));
- const x=new Uint8Array(28);x.set(salt);x.set(iv,16);return{m:1,x,d:ct}}
+ const x=new Uint8Array(28);x.set(salt);x.set(iv,16);return{m:2,x,d:ct}}
 function build(p,n){
  const o=new Uint8Array(10+p.x.length+p.d.length);
  o.set(MAGIC);o[5]=p.m;new DataView(o.buffer).setUint32(6,n);o.set(p.x,10);o.set(p.d,10+p.x.length);return o}
