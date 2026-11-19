@@ -1,8 +1,8 @@
 /* Conclave (members-only game). Single source: runs inside the sandboxed frame that index.html builds from <template id="clvTpl"> (see clvOpen in app.js). */
 /* ---- 1. membership gate ---- */
 /* Members only: the server (illuminati-portal) checks the signed Telegram login. Nothing below the gate starts until it says "member". */
-(function(){
 const EMB=(()=>{try{const m=document.querySelector('meta[name="clv-init"]');if(m&&m.content)return JSON.parse(decodeURIComponent(m.content))}catch(e){}return null})();
+(function(){
 /* red-card theme arrives from the parent as plain CSS variables; only accepted from the parent window */
 window.addEventListener("message",ev=>{if(ev.source!==parent)return;const m=ev.data;if(!m||m.clv!=="theme")return;let s=document.getElementById("rcFrameRed");const css=typeof m.css==="string"&&m.css.length<4000&&/^:root\{(--[a-z0-9-]+:[^;{}<>]+;?)+\}$/i.test(m.css)?m.css:"";if(css){if(!s){s=document.createElement("style");s.id="rcFrameRed";document.head.appendChild(s)}s.textContent=css}else if(s)s.remove()});
 try{if(window.parent!==window)parent.postMessage({clv:"red",op:"ready"},"*")}catch(e){}
@@ -268,7 +268,7 @@ let _rest="";function setRest(h){if(h===_rest)return;_rest=h;$("#rest").innerHTM
 const hdrT=()=>{const t=Math.max(0,G.end-Date.now()),m=Math.floor(t/60000),sc=Math.floor(t/1000)%60;return `Grand Master: ${G.P[G.chair].n} · Treasury ${fmt(G.pot)}`+(G.ph=="over"?"":` · ${m}:${String(sc).padStart(2,"0")} left`)};
 function menu(){GEN++;G=null;_rest="";$("main").innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:42px">CONCLAVE</div><p class="sub">The Inner Circle convenes. Only one becomes Grand Master.</p><div class="card"><p style="margin:0 0 8px">Walk the hidden halls of the Order. Acquire holdings, collect tribute, survive omens and vote on decrees that bend the rules. Your mandate is secret, and so are your rivals’.</p><p class="eb" style="margin:16px 0 8px">Length</p><div class="dock"><button class="pri" style="pointer-events:none">Long · 30 minutes</button></div><p class="eb" style="margin:16px 0 8px">Play with other members</p><div class="dock"><button class="pri" data-act="batchUI">Batches · create or join</button></div><p class="note" style="margin:10px 0 0">Real members only. A game needs at least ${MINP} members in the batch, and every seat is a real person. Live chat is inside your batch.</p></div>`}
 function start(n,names){if(!window.CLOK)return;GEN++;_rest="";G={end:Date.now()+GAME_MS,away:0,r:1,R:LEN,cur:0,chair:0,ph:"",pot:0,log:[],dice:[0,0],sel:null,fl:{toll:0,sal:200,levy:100},own:Array(32).fill(-1),hist:{},alert:"",pi:0,props:PROPS(),P:[]};
-for(let i=0;i<n;i++)G.P.push({i,n:(names&&names[i])||NAMES[i],cash:1500,inf:0,pos:0,ob:rnd(OBJ.length),earned:0});say("The Conclave is called to order.");turn()}
+for(let i=0;i<n;i++)G.P.push({i,n:(names&&names[i]&&String(names[i]).replace(/[^\w]/g,"").slice(0,16))||NAMES[i],cash:1500,inf:0,pos:0,ob:rnd(OBJ.length),earned:0});say("The Conclave is called to order.");turn()}
 async function turn(){const p=G.P[G.cur];if(p.out){endTurn();return}G.ph=(p.i||G.away)?"wait":"roll";G.sel=null;render();if(p.i){await sleep(400);roll(p)}else if(G.away)awayTurn(p)}
 async function sellAll(p){const mine=G.own.map((x,k)=>x==p.i?k:-1).filter(k=>k>=0);if(!mine.length)return;say(`${p.n} is inactive. ${mine.length>1?"Their holdings go":"Their holding goes"} to bidding.`);render();await sleep(500);for(const k of mine){if(G.own[k]==p.i)await auction(k,p)}}
 async function awayTurn(p){await sellAll(p);if(!G.away){G.ph="roll";render();return}await sleep(300);roll(p)}
