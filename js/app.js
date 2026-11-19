@@ -179,8 +179,7 @@ function rtConnect(){
     if(m.event==="phx_reply"){if(m.payload&&m.payload.status==="ok"){RT.ok=true;RT.retry=0;pulse(true)}else{try{ws.close()}catch(e){}}}
     else if(m.event==="phx_error"){try{ws.close()}catch(e){}}
     else if(m.event==="broadcast"&&m.payload){const e=m.payload.event,p=m.payload.payload;
-      if(e==="chat"&&p&&BATCH&&!decoded)addChat({id:+p.id,u:p.u,t:p.t},false);
-      else if(e==="poke")rtPoke()}};
+      if((e==="chat"||e==="poke")&&BATCH&&!decoded)rtPoke()}};  /* broadcast content is never trusted or rendered: it only triggers a server fetch */
   ws.onclose=()=>{clearInterval(RT.hb);if(RT.ws!==ws)return;RT.ws=null;RT.ok=false;
     if(RT.name&&BATCH&&!decoded){RT.retry++;clearTimeout(RT.timer);RT.timer=setTimeout(rtConnect,Math.min(5000,400*RT.retry))}};
   ws.onerror=()=>{try{ws.close()}catch(e){}}}

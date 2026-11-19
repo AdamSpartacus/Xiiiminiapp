@@ -346,7 +346,7 @@ document.querySelectorAll(".cube").forEach((c,n)=>{const[x,y]=ORI[G.dice[n]||1];
 if(G.rolling&&!c.dataset.r){c.classList.remove("tum");void c.offsetWidth;c.classList.add("tum");c.dataset.r=1}if(!G.rolling)delete c.dataset.r})}
 function gameChat(){if(!BT.ch)return"";return `<div class="card"><div class="eb" style="text-align:left;margin:0 0 8px">Batch chat</div><div class="chat" id="gMsgs"></div><form class="crow" id="gCf" autocomplete="off"><input class="bin" id="gCi" maxlength="140" placeholder="Message your batch"><button class="pri" type="submit">Send</button></form></div>`}
 function gameWire(){const lv=$("#gLeave");if(lv){let t=0;lv.onclick=()=>{if(G&&G.ph!="over"&&!lv.dataset.sure){lv.dataset.sure=1;lv.textContent="Tap again to leave the game";t=setTimeout(()=>{delete lv.dataset.sure;lv.textContent="Leave game"},4000);return}clearTimeout(t);leaveGame()}}
- const f=$("#gCf");if(f){f.addEventListener("submit",e=>{e.preventDefault();const i=$("#gCi"),x=i.value.trim();if(!x||!BT.ch)return;i.value="";BT.ch.send({type:"broadcast",event:"chat",payload:{n:BME,t:x}})});bChat()}}
+ const f=$("#gCf");if(f){f.addEventListener("submit",e=>{e.preventDefault();const i=$("#gCi"),x=i.value.trim();if(!x||!BT.ch)return;i.value="";window.CLCALL("cb_chat",{batch:BT.sn,t:x})});bChat()}}
 async function leaveGame(){GEN++;G=null;_rest="";await batchLeave();menu()}
 function render(){if(!G)return;const me=G.P[0],o=G.ph=="over",m=$("main");
 if(!$("#stg"))m.innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm">CONCLAVE</div><div class="sub" id="hdr"></div><div class="stage" id="stg">${board()}</div><div id="rest"></div>${gameChat()}<div class="dock" style="margin:6px 0 24px"><button id="gLeave" type="button">Leave game</button></div>`;gameWire();
@@ -445,7 +445,7 @@ function bLobby(){
  <button class="pri" id="bGo" type="button" style="width:100%;min-height:48px" hidden>Start the Conclave</button><p class="note" id="bWait" style="text-align:center">Waiting for the host to start.</p></div>
  <div class="card"><div class="eb" style="text-align:left;margin:0 0 8px">Live chat</div><div class="chat" id="bMsgs"></div>
  <form class="crow" id="bCf2" autocomplete="off"><input class="bin" id="bCi" maxlength="140" placeholder="Message your batch"><button class="pri" type="submit">Send</button></form></div>`);
- $("#bCf2").addEventListener("submit",e=>{e.preventDefault();const t=$("#bCi").value.trim();if(!t||!BT.ch)return;$("#bCi").value="";BT.ch.send({type:"broadcast",event:"chat",payload:{n:BME,t}})});
+ $("#bCf2").addEventListener("submit",e=>{e.preventDefault();const t=$("#bCi").value.trim();if(!t||!BT.ch)return;$("#bCi").value="";window.CLCALL("cb_chat",{batch:BT.sn,t})});
  $("#bGo").onclick=async()=>{if(!BT.ch||!BT.host||BT.members.length<MINP)return;try{await window.CLCALL("cb_start",{batch:BT.sn})}catch(e){}if(!BT.ch)return;BT.ch.send({type:"broadcast",event:"start",payload:{m:BT.members.slice(0,6).map(x=>({n:x.n,k:x.k}))}})};
  bLobbyUpdate();bChat()}
 function bOnStart(p){if(!BT.ch||BT.playing||!p||!Array.isArray(p.m)||p.m.length<MINP||p.m.length>6)return;const me=BME+"~"+BT.sid;if(!p.m.some(x=>x.k==me))return;
@@ -467,7 +467,7 @@ async function chatJoin(){const w=Math.floor(Date.now()/CW);CHAT.win=w;await cha
  c.on("broadcast",{event:"m"},p=>{const d=p&&p.payload;if(!d||typeof d.t!=="string")return;const n=String(d.n||"Member").slice(0,24);chatAdd(n,d.t.slice(0,280),n===BME)});
  c.subscribe(s=>{if(c!==CHAT.ch)return;chatSt(s==="SUBSCRIBED"?"Live":(s==="CHANNEL_ERROR"||s==="TIMED_OUT")?"Reconnecting…":"Connecting…")})}
 function chatClock(){if(!CHAT.alive)return;const l=CW-(Date.now()%CW),e=$("#lcCt");if(e)e.textContent=Math.floor(l/60000)+":"+String(Math.floor(l%60000/1000)).padStart(2,"0");if(Math.floor(Date.now()/CW)!==CHAT.win)chatJoin()}
-function chatSend(){const i=$("#lcI");if(!i||!CHAT.ch||!CHAT.alive)return;const t=i.value.trim();if(!t||Date.now()-CHAT.last<1500)return;CHAT.last=Date.now();i.value="";CHAT.ch.send({type:"broadcast",event:"m",payload:{n:BME,t:t.slice(0,280)}})}
+function chatSend(){const i=$("#lcI");if(!i||!CHAT.ch||!CHAT.alive)return;const t=i.value.trim();if(!t||Date.now()-CHAT.last<1500)return;CHAT.last=Date.now();i.value="";window.CLCALL("cb_say",{t:t.slice(0,280)})}
 function chatUI(){if(!window.CLOK)return;chatLeave();CHAT.alive=true;G=null;
  $("main").innerHTML=`<p class="eb">Illuminati Secret Society</p><div class="wm" style="font-size:30px">LIVE CHAT</div><div class="card"><div class="eb" style="text-align:left;margin:0;display:flex;justify-content:space-between"><span id="lcSt">Connecting…</span><span>clears in <span id="lcCt">10:00</span></span></div><div id="lcMsgs" aria-live="polite"></div><div style="display:flex;gap:8px"><input id="lcI" maxlength="280" placeholder="Message the members" aria-label="Message" autocomplete="off"><button class="pri" id="lcS" type="button" style="width:auto">Send</button></div></div><div class="dock"><button data-act="chatMenu">Back</button></div>`;
  $("#lcS").onclick=chatSend;$("#lcI").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();chatSend()}});
