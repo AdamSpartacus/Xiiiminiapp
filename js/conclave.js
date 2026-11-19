@@ -16,16 +16,17 @@ rb.onclick=()=>location.reload();
 function app(){if(EMB&&EMB.d)return{initData:EMB.d,platform:EMB.p,initDataUnsafe:{user:EMB.u}};try{const a=window.Telegram&&Telegram.WebApp;if(a&&a.initData)return a}catch(e){}try{if(window.parent!==window){const p=parent.Telegram&&parent.Telegram.WebApp;if(p&&p.initData)return p}}catch(e){}return null}
 function deny(msg,retry){const was=_ok;_ok=false;_nm="";_at=0;t.textContent="Members only";m.textContent=msg;rb.style.display=retry?"":"none";if(gp&&!g.isConnected)gp.appendChild(g);
  try{window.INTRO3D&&INTRO3D.stop()}catch(e){}
- try{if(typeof chatLeave==="function")chatLeave()}catch(e){}try{if(typeof batchLeave==="function")batchLeave()}catch(e){}
+ try{if(typeof chatLeave==="function")chatLeave()}catch(e){}try{if(typeof batchLeave==="function"){const p=batchLeave();if(p&&p.catch)p.catch(()=>{})}}catch(e){}
  const mm=document.querySelector("main");if(mm)mm.innerHTML=""}
 async function verify(){
  const a=app();if(!a){deny("Open the Conclave from the Illuminati app in Telegram.");return false}
- let r;try{const res=await fetch(SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData})});r=await res.json()}
+ let r;try{const res=await fetch(SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData}),signal:(typeof AbortSignal!=="undefined"&&AbortSignal.timeout)?AbortSignal.timeout(15000):undefined});r=await res.json()}
  catch(e){if(!_ok)deny("Could not verify your membership. Check your connection.",1);return false}
  if(r&&r.status==="member"&&r.member){const first=!_ok;_ok=true;_at=Date.now();_nm=String(r.member.username||"").replace(/[^\w]/g,"").slice(0,16);if(g.isConnected)g.remove();if(first)window.dispatchEvent(new Event("clok"));return true}
  if(r&&r.status==="banned")deny("Your membership has been revoked.");
  else if(r&&r.status==="locked")deny("The portal is locked right now.");
  else if(r&&r.status==="none")deny("Only registered members can play. Complete your member profile first.");
+ else if(r&&r.status==="denied"&&/open this from telegram/i.test(String(r.error||""))&&a.initData)deny("Your session expired. Close this mini app completely and open it again from Telegram.");
  else deny((r&&r.error)||"Only registered members can play.",1);
  return false}
 /* Re-checks with the server before every join (cached 45s). Fails closed. */
@@ -484,7 +485,7 @@ intro();
 
 /* ===== fullscreen + landscape ===== */
 (function(){
- if(document.documentElement.hasAttribute("data-tg"))return;
+ if(document.documentElement.hasAttribute("data-tg")||document.documentElement.hasAttribute("data-embed"))return;
  const de=document.documentElement;
  const isFS=()=>document.fullscreenElement||document.webkitFullscreenElement;
  function lock(){}
