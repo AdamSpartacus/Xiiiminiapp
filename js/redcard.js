@@ -19,10 +19,8 @@ let note=null,noteT=0;
 const HEAD_ON="#0c0205",HEAD_OFF="#000000";
 const FRAME_CSS=':root{--text:#f4e6e8;--fg:#f4e6e8;--mute:#d8b4b9;--mut:#d8b4b9;--dim:#ee4455;--line:rgba(255,52,72,.34);--accent:#ff4d5e;--gold:#ff4d5e;--gold2:rgba(255,70,90,.5);--panel:rgba(255,30,50,.05);--tile:rgba(255,30,50,.11);--tile2:rgba(255,30,50,.03);--glass:linear-gradient(145deg,rgba(255,30,50,.14),rgba(110,0,14,.05));--bgfx:radial-gradient(640px 460px at 82% -4%,rgba(150,0,20,.5),transparent 70%),radial-gradient(800px 480px at 50% -12%,#2a0309,#000 62%)}';
 function frame(on){
- try{const f=document.getElementById("clvFrame"),d=f&&f.contentDocument;if(!d||!d.head)return;
-  let st=d.getElementById("rcFrameRed");
-  if(on&&!st){st=d.createElement("style");st.id="rcFrameRed";st.textContent=FRAME_CSS;d.head.appendChild(st)}
-  else if(!on&&st)st.remove()}catch(e){}}
+ try{const f=document.getElementById("clvFrame");if(f&&f.contentWindow)f.contentWindow.postMessage({clv:"theme",css:on?FRAME_CSS:""},"*")}catch(e){}}
+window.addEventListener("message",ev=>{const f=document.getElementById("clvFrame");if(!f||ev.source!==f.contentWindow)return;const m=ev.data;if(m&&m.clv==="red"&&m.op==="ready")frame(!!lit)});
 function mount(){
  if(note)return;
  note=document.createElement("div");note.id="rcNote";note.setAttribute("role","status");note.setAttribute("aria-live","assertive");
