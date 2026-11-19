@@ -7,7 +7,7 @@ try{
 const api=V.services.api,$=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hap=k=>{try{V.tg.haptic(k||"light")}catch(e){}};
-const toast=t=>{const e=$("miToast");if(!e)return;e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),2200)};
+const toast=t=>{const e=$("miToast");if(!e)return;e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),3600)};
 const body=document.body,active=()=>body.dataset.view==="vote";
 const SP='<div class="mi-sp"></div>',LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const PILL={open:"Open",passed:"Passed",failed:"Failed",revision:"Revision",lost:"Not chosen"};
@@ -83,12 +83,13 @@ function paint(){
  $("vtCount").textContent=pl(S.electorate,"voting member");
  $("vtRules").innerHTML='<div><b>'+st.min_part+'%</b><small>of members must vote</small></div><div><b>&gt;'+st.pass_pct+'%</b><small>support to pass</small></div><div><b>&gt;'+st.fail_pct+'%</b><small>opposed to fail</small></div>';
  $("vtLead").textContent="A request passes with more than "+st.pass_pct+"% support and fails with more than "+st.fail_pct+"% opposition. Anything in between returns to its author for revision. If two competing requests are raised, members back one and the most votes passes.";
- $("vtBar").innerHTML=S.proposer?'<div class="vt-role"><b>You are a proposer</b><span>You can raise official requests and put up a competing request against another proposer\u2019s. '+S.open_mine+' of 2 open.</span><button class="btn solid" id="vtNew" type="button"'+(S.open_mine>=2?" disabled":"")+'>Raise a request</button></div>':"";
+ const EMB='<span class="vt-emb" aria-hidden="true"></span>',ARW='<svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 14h19M16 7l7 7-7 7"/></svg>';
+ $("vtBar").innerHTML=S.proposer?'<div class="vt-role"><div class="vt-rh">'+EMB+'<i></i><div class="vt-rt"><strong>Proposer</strong><em>Request authority</em></div><span class="vt-cnt">'+S.open_mine+' / 2</span></div><p class="vt-rp">You can raise official requests and put up a competing request against another proposer\u2019s.</p><button class="vt-raise" id="vtNew" type="button"'+(S.open_mine>=2?" disabled":"")+'>Raise a request'+ARW+'</button></div>':"";
  const nb=$("vtNew");if(nb)nb.onclick=()=>openForm("new");
  const gs=groups(P),open=gs.filter(g=>g.items[0].status==="open"),rev=gs.filter(g=>g.items[0].status==="revision"),done=gs.filter(g=>g.items[0].status!=="open"&&g.items[0].status!=="revision");
- $("vtList").innerHTML=P.length?sec("Open for voting",open)+sec("Returned for revision",rev)+sec("Decided",done):'<div class="nscard"><p class="nslbl">No requests yet</p><p class="note" style="margin:0">When a proposer raises an official request, it appears here for every member to vote on.</p></div>';
+ $("vtList").innerHTML=P.length?sec("Open for voting",open)+sec("Returned for revision",rev)+sec("Decided",done):'<div class="vt-empty"><div class="vt-er"><u></u><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M9 3.5h12.5L27 9v21.5H9z"/><path d="M21 3.5V10h6"/><path d="M13 16.5h10M13 21h10M13 25.5h6"/></svg><u></u></div><strong>No requests yet</strong><p>When a proposer raises an official request, it appears here for every member to vote on.</p></div>';
  const pr=S.proposers||[];
- $("vtProp").innerHTML=pr.length?'<p class="sh vt-h">Proposers<small>'+pr.length+'</small></p><div class="vt-chips">'+pr.map(x=>'<span class="vt-chip'+(x.you?" you":"")+'">'+esc(x.label)+(x.you?" \u00b7 you":"")+'</span>').join("")+'</div><p class="vt-meta">Only these members can raise requests. Every other member votes.</p>':""}
+ $("vtProp").innerHTML=pr.length?'<p class="sh vt-h">Proposers<small>'+pr.length+'</small></p><div class="vt-pgrid">'+pr.map(x=>'<div class="vt-pc'+(x.you?" you":"")+'">'+EMB+'<i></i><span>'+esc(x.label)+(x.you?" \u00b7 you":"")+'</span></div>').join("")+'</div><p class="vt-meta">Only these members can raise requests. Every other member votes.</p>':""}
 
 $("vtList").addEventListener("click",async e=>{
  const b=e.target.closest("[data-vt]");if(!b||!S)return;const a=b.dataset.vt,id=b.dataset.id,p=S.proposals.find(x=>x.id===id);
