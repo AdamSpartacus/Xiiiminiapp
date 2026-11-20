@@ -434,6 +434,12 @@ setInterval(()=>{if(!document.hidden&&(PL||entered))plCheck()},10000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered))plCheck()});
 
 const meP=api.me().catch(()=>({status:"none"}));
+/* Keep the Telegram name current: on every open (and whenever the app comes back to the foreground) compare it with the saved one and update it if it changed. Silent; ignored if it fails. */
+let tgSaved=null,tgBusy=false;
+async function tgSync(){if(tgBusy||tgSaved===null||!api.set_tg_name)return;const t=tgInfo();if(!t.tg_name||t.tg_name===tgSaved)return;tgBusy=true;try{const r=await api.set_tg_name(t);if(r&&r.ok)tgSaved=t.tg_name}catch(e){}tgBusy=false}
+meP.then(r=>{try{if(r&&r.member){tgSaved=String(r.member.tg_name||"");tgSync()}}catch(e){}});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)tgSync()});
+try{V.tg.app&&V.tg.app.onEvent&&V.tg.app.onEvent("activated",tgSync)}catch(e){}
 let clvF=null;
 /* Conclave runs in a sandboxed frame (opaque origin): it cannot touch this page, cookies or storage. It only gets the login data it must send to the server,
    and talks back through two checked messages (red-card room, ready). Messages are accepted only from that exact frame. */
@@ -467,8 +473,10 @@ try{const dn=new Intl.DisplayNames(["en"],{type:"region",fallback:"none"}),skip=
  L.sort((x,y)=>x.localeCompare(y));$("#ct").insertAdjacentHTML("beforeend",L.map(n=>'<option>'+n+'</option>').join(""))}catch(e){}
 $("#dob").max=new Date().toISOString().slice(0,10);
 
+/* Telegram account name (first + last name on the Telegram profile). Kept separately from the name typed in the form. */
+function tgInfo(){const u=V.tg&&V.tg.user;if(!u)return{tg_name:"",tg_username:""};const cl=x=>String(x||"").replace(/\s+/g," ").trim().slice(0,128);return{tg_name:cl([u.first_name,u.last_name].filter(Boolean).join(" ")),tg_username:cl(u.username).slice(0,64)}}
 $("#sub").addEventListener("click",async()=>{
- const err=$("#err"),g=$('input[name="g"]:checked'),p={name:$("#fn").value.trim().replace(/\s+/g," "),dob:$("#dob").value,country:$("#ct").value,gender:g?g.value:"",username:$("#un").value.trim().replace(/^@/,"").toLowerCase()};
+ const err=$("#err"),g=$('input[name="g"]:checked'),p={name:$("#fn").value.trim().replace(/\s+/g," "),dob:$("#dob").value,country:$("#ct").value,gender:g?g.value:"",username:$("#un").value.trim().replace(/^@/,"").toLowerCase(),...tgInfo()};
  const bad=!/\p{L}.*\p{L}/u.test(p.name)?"Enter your full name.":!p.dob||p.dob>$("#dob").max||p.dob<"1900-01-01"?"Enter a valid date of birth.":!p.country?"Select your country of residence.":!p.gender?"Select your gender.":!p.username?"Choose a username.":!/^[a-z][a-z0-9_]{2,19}$/.test(p.username)?"Username must be 3-20 characters: letters, numbers, underscore, starting with a letter.":$("#un").dataset.ok==="0"?"That username is already taken.":"";
  err.textContent=bad;if(bad)return;
  const btn=$("#sub");btn.disabled=true;V.tg.haptic("medium");
@@ -537,13 +545,15 @@ async function load(){const r=await api.list();if(!r||!r.ok){$("#fl").innerHTML=
 const PN={};const paintMerit=id=>{const m=M.find(x=>x.uid===id);if(!m)return;document.querySelectorAll("#fl .mv").forEach(el=>{if(el.dataset.uid!==id)return;el.textContent=+m.merits||0;el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop")})};
 const MB=id=>[-5,-1,1,5].map(n=>'<button data-merit="'+n+'" data-id="'+esc(id)+'">'+(n<0?"\u2212":"+")+Math.abs(n)+'</button>').join("");
 function draw(){const q=$("#fq").value.trim().toLowerCase(),BS=new Set(BI.concat(M.filter(m=>m.banned).map(m=>m.uid))),
- rows=M.filter(m=>[m.code,m.legacy_code,m.username,m.name,m.country,m.uid,m.tg||m.tg_username].join(" ").toLowerCase().includes(q)),
+ rows=M.filter(m=>[m.code,m.legacy_code,m.username,m.name,m.tg_name,m.country,m.uid,m.tg||m.tg_username].join(" ").toLowerCase().includes(q)),
  orph=[...BS].filter(id=>!M.some(m=>m.uid===id)&&String(id).toLowerCase().includes(q));
  $("#fc").textContent=M.length+" members, "+BS.size+" banned";
  const bt=(a,id,banned)=>'<button class="'+(a==="remove"?"del":a)+'" data-act="'+a+'" data-id="'+esc(id)+'">'+LB[a]+'</button>';
- $("#fl").innerHTML=rows.map(m=>{const bn=BS.has(m.uid);return '<div class="mem"><div class="mh"><b>'+esc(m.code)+(bn?'<span class="tag">Banned</span>':'')+'</b><div class="ma">'+bt("remove",m.uid)+(bn?bt("unban",m.uid):bt("ban",m.uid))+'</div></div><dl><dt>Name</dt><dd>'+esc(m.name)+'</dd><dt>User</dt><dd>'+(m.username?'@'+esc(m.username):'-')+'</dd><dt>Old code</dt><dd>'+esc(m.legacy_code||'-')+'</dd><dt>Merits</dt><dd><b class="mv" data-uid="'+esc(m.uid)+'">'+(+m.merits||0)+'</b><span class="mc">'+MB(m.uid)+'</span></dd><dt>Born</dt><dd>'+esc(m.dob)+'</dd><dt>Country</dt><dd>'+esc(m.country)+'</dd><dt>Gender</dt><dd>'+esc(m.gender)+'</dd><dt>Account</dt><dd>'+esc(m.uid)+((m.tg||m.tg_username)?" @"+esc(m.tg||m.tg_username):"")+'</dd><dt>Joined</dt><dd>'+esc(String(m.at||m.created_at||"").slice(0,10))+'</dd></dl></div>'}).join("")||"<p>No members found.</p>";
+ $("#fl").innerHTML=rows.map(m=>{const bn=BS.has(m.uid);return '<div class="mem"><div class="mh"><b>'+esc(m.code)+(bn?'<span class="tag">Banned</span>':'')+'</b><div class="ma">'+bt("remove",m.uid)+(bn?bt("unban",m.uid):bt("ban",m.uid))+'</div></div><dl><dt>Name</dt><dd>'+esc(m.name)+'</dd><dt>Telegram name</dt><dd>'+esc(m.tg_name||'-')+'</dd><dt>User</dt><dd>'+(m.username?'@'+esc(m.username):'-')+'</dd><dt>Old code</dt><dd>'+esc(m.legacy_code||'-')+'</dd><dt>Merits</dt><dd><b class="mv" data-uid="'+esc(m.uid)+'">'+(+m.merits||0)+'</b><span class="mc">'+MB(m.uid)+'</span></dd><dt>Born</dt><dd>'+esc(m.dob)+'</dd><dt>Country</dt><dd>'+esc(m.country)+'</dd><dt>Gender</dt><dd>'+esc(m.gender)+'</dd><dt>Account</dt><dd>'+esc(m.uid)+((m.tg||m.tg_username)?" @"+esc(m.tg||m.tg_username):"")+'</dd><dt>Joined</dt><dd>'+esc(String(m.at||m.created_at||"").slice(0,10))+'</dd></dl></div>'}).join("")||"<p>No members found.</p>";
  if(orph.length)$("#fl").insertAdjacentHTML("beforeend",'<div class="bh">Banned, no longer a member</div>'+orph.map(id=>'<div class="mem"><div class="mh"><b>'+esc(id)+'<span class="tag">Banned</span></b><div class="ma">'+bt("unban",id)+'</div></div></div>').join(""))}
 $("#fbtn").onclick=async()=>{back=cur;go("founders");await load()};
+/* Live refresh of the members list while the Founders view is open (skipped while a confirm button is armed or a merit tap is in flight) */
+setInterval(async()=>{if(cur!=="founders"||document.hidden||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;const q=$("#fq");const r=await api.list().catch(()=>null);if(!r||!r.ok||cur!=="founders"||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;M=r.members||[];BI=Array.isArray(r.banned_ids)?r.banned_ids:[];nb=Array.isArray(r.banned_ids)?BI.length:(r.banned||0);const y=$("#fl").scrollTop;draw();$("#fl").scrollTop=y},15000);
 $("#fback").onclick=()=>go(back);
 try{V.tg.app&&V.tg.app.BackButton&&V.tg.app.BackButton.onClick(()=>{if(cur==="founders"||cur==="lock")go(back)})}catch(e){}
 $("#fq").oninput=draw;
@@ -566,7 +576,7 @@ const lkName=id=>{const m=LM.find(x=>x.uid===id);return m?(m.username?"@"+m.user
 const lkCnt=()=>{$("#lcnt").textContent=$("#lmsg").value.length+"/500"};
 function lkDraw(){const q=$("#lq").value.trim().toLowerCase();
  $("#lex").innerHTML=EXS.size?[...EXS].map(id=>'<button type="button" class="lchip" data-lx="'+esc(id)+'" aria-label="Remove exception">'+esc(lkName(id))+' \u00d7</button>').join(""):'<p class="note" style="margin:0">No exceptions yet. Only you can enter while the portal is locked.</p>';
- const rows=LM.filter(m=>!q||[m.username,m.name,m.code,m.uid,m.tg_username,m.tg].join(" ").toLowerCase().includes(q)).slice(0,40);
+ const rows=LM.filter(m=>!q||[m.username,m.name,m.tg_name,m.code,m.uid,m.tg_username,m.tg].join(" ").toLowerCase().includes(q)).slice(0,40);
  $("#llist").innerHTML=rows.map(m=>{const on=EXS.has(m.uid);return '<div class="lrow"><div class="lwho"><b>'+esc(m.username?"@"+m.username:(m.name||"Member"))+'</b><small>'+esc(m.name||"")+' \u00b7 '+esc(m.uid)+'</small></div><button type="button" class="lbt'+(on?" on":"")+'" data-la="'+esc(m.uid)+'">'+(on?"Allowed":"Allow")+'</button></div>'}).join("")||'<p class="note">No members found.</p>'}
 function lkPaint(){if(!LK)return;const s=$("#lkst"),rem=LK.locked&&LK.until?Date.parse(LK.until)-(Date.now()+LK.off):null;
  if(rem!==null&&rem<=0&&Date.now()-lkLast>4000){lkLoad();return}
@@ -605,7 +615,7 @@ $("#lgo").onclick=async()=>{const b=$("#lgo");if(!LK)return;
 const ulNote=(t,bad)=>{const n=$("#lunote");if(!n)return;n.textContent=t||"";n.style.color=bad?"#ff9a9a":""};
 function lkUDraw(){const q=$("#luq").value.trim().toLowerCase(),on=new Set(UL.map(x=>x.id)),me=String(V.gate.uid()||""),now=Date.now()+(LK?LK.off:0);
  $("#lul").innerHTML=UL.length?UL.map(x=>{const rem=x.until?Date.parse(x.until)-now:null;return '<button type="button" class="lchip" data-ux="'+esc(x.id)+'" aria-label="Unlock member">'+esc(lkName(x.id))+' \u00b7 <span class="lut" data-u="'+esc(x.until||"")+'">'+(rem!==null?leftTxt(rem):"until unlocked")+'</span> \u00d7</button>'}).join(""):'<p class="note" style="margin:0">No members are locked individually.</p>';
- const rows=LM.filter(m=>!on.has(m.uid)&&String(m.uid)!==me&&(!q||[m.username,m.name,m.code,m.uid,m.tg_username,m.tg].join(" ").toLowerCase().includes(q))).slice(0,40);
+ const rows=LM.filter(m=>!on.has(m.uid)&&String(m.uid)!==me&&(!q||[m.username,m.name,m.tg_name,m.code,m.uid,m.tg_username,m.tg].join(" ").toLowerCase().includes(q))).slice(0,40);
  $("#lulist").innerHTML=rows.map(m=>'<div class="lrow"><div class="lwho"><b>'+esc(m.username?"@"+m.username:(m.name||"Member"))+'</b><small>'+esc(m.name||"")+' \u00b7 '+esc(m.uid)+'</small></div><button type="button" class="lbt" data-ul="'+esc(m.uid)+'">Lock</button></div>').join("")||'<p class="note">No members found.</p>'}
 function lkUTick(){const now=Date.now()+LK.off;let exp=false;document.querySelectorAll("#lul .lut").forEach(s=>{const u=s.dataset.u;if(!u)return;const rem=Date.parse(u)-now;if(rem<=0)exp=true;else s.textContent=leftTxt(rem)});if(exp&&Date.now()-lkLast>4000)lkLoad()}
 $("#luq").oninput=lkUDraw;
