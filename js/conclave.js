@@ -253,6 +253,7 @@ const cnt=p=>G.own.filter(o=>o==p.i).length;
 const score=(p,e)=>p.cash+G.own.reduce((s,o,i)=>o==p.i?s+T[i][3]:s,0)+p.inf*150+(e&&OBJ[p.ob].f(p)?500:0);
 const leader=()=>G.P.reduce((b,p)=>score(p)>score(G.P[b])?p.i:b,0);
 const say=s=>G.log.unshift(s);
+ const escH=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),cleanN=t=>String(t==null?"":t).replace(/[^\w]/g,"").slice(0,16)||"Player";
 const toll=i=>{const o=G.own[i];return(Math.round(T[i][3]*.05)*5+G.fl.toll)*(grp(T[i][4]).every(k=>G.own[k]==o)?2:1)};
 function setLen(n){LEN=n;menu()}
 let _rest="";function setRest(h){if(h===_rest)return;_rest=h;$("#rest").innerHTML=h}
@@ -266,7 +267,7 @@ function gAdopt(v){if(!GM||!v||!v.s||!Array.isArray(v.s.P))return;
  if(typeof v.q==="number"){if(v.q<GM.q)return;GM.q=v.q}
  if(typeof v.ob==="number")GM.ob=v.ob;
  const s=v.s,n=s.P.length,me=GM.me,R=i=>i<0?i:(i-me+n)%n,first=!G;
- const P=new Array(n);s.P.forEach(p=>{const j=R(p.i);P[j]={i:j,n:p.n,cash:p.cash,inf:p.inf,pos:p.pos,out:!!p.out,away:!!p.away,ob:typeof p.ob==="number"?p.ob:0,earned:p.earned||0}});
+ const P=new Array(n);s.P.forEach(p=>{const j=R(p.i);P[j]={i:j,n:cleanN(p.n),cash:p.cash,inf:p.inf,pos:p.pos,out:!!p.out,away:!!p.away,ob:typeof p.ob==="number"?p.ob:0,earned:p.earned||0}});
  P[0].ob=GM.ob;
  const own=s.own.map(o=>R(o)),mine=s.cur===me,ph0=s.ph;let ph="wait";
  if(ph0==="over")ph="over";
@@ -276,7 +277,7 @@ function gAdopt(v){if(!GM||!v||!v.s||!Array.isArray(v.s.P))return;
  else if(ph0==="bid"&&s.auc)ph="bid";
  else if(ph0==="vote"&&s.vote&&!(s.vote.done||[]).includes(me)&&!P[0].away&&!P[0].out)ph="vote";
  const g=G||{sel:null,alert:"",flash:null,rolling:0};
- g.end=s.end;g.R=s.R;g.r=s.r;g.cur=R(s.cur);g.chair=R(s.chair);g.pot=s.pot;g.log=s.log||[];g.dice=s.dice||[0,0];g.fl=s.fl;g.own=own;g.hist=s.hist||{};g.P=P;
+ g.end=s.end;g.R=s.R;g.r=s.r;g.cur=R(s.cur);g.chair=R(s.chair);g.pot=s.pot;g.log=(Array.isArray(s.log)?s.log:[]).slice(0,40).map(x=>escH(x).replace(/&lt;(\/?)b&gt;/g,"<$1b>"));g.dice=s.dice||[0,0];g.fl=s.fl;g.own=own;g.hist=s.hist||{};g.P=P;
  g.vote=s.vote?{t:s.vote.t,d:s.vote.d,done:(s.vote.done||[]).map(R)}:null;
  g.need=s.tc?s.tc.need:0;g.sp=ph0;g.off=(typeof s.t==="number"?s.t:Date.now())-Date.now();g.dl=s.dl||0;g.away=P[0].away?1:0;g.out=P[0].out;
  g.auc=s.auc?{k:s.auc.k,seller:R(s.auc.seller),bid:s.auc.bid,top:R(s.auc.top),ask:s.auc.next,waiting:s.auc.ask===me?1:0}:null;
@@ -333,7 +334,7 @@ const wt=G.out?"You left this game.":G.sp=="vote"?"Waiting for the other members
 function holdings(){const mine=G.own.map((o,i)=>o==0?i:-1).filter(i=>i>=0),tot=mine.reduce((s,i)=>s+(G.hist[i]?G.hist[i].sum:0),0);
 const cards=mine.map(i=>{const t=T[i],h=G.hist[i],g=grp(t[4]),have=g.filter(k=>G.own[k]==0).length;
 return `<div class="hc${G.flash==i?" hit":""}"><i class="gs" style="background:${GRP[t[4]][1]}"></i><div class="hn"><img class="hi" src="${ICON[i]}" alt=""><b>${t[1]}</b></div><small>${GRP[t[4]][0]} · ${have}/${g.length}${have==g.length?" · toll ×2":""}</small><div class="ht">${fmt(toll(i))}<em>toll</em></div><small>Collected ${fmt(h?h.sum:0)} · ${h?h.n:0} visit${h&&h.n==1?"":"s"}</small><div class="hl${h&&h.last.r==G.r?" now":""}">${h?h.last.who+" paid "+fmt(h.last.amt)+" · round "+h.last.r:"No visitors yet"}</div></div>`}).join("");
-return `<div class="card"><div class="eb" style="text-align:left;margin:0 0 10px;display:flex;justify-content:space-between"><span>Your holdings</span><span>Tolls collected ${fmt(tot)}</span></div>${G.alert?`<p class="hl now" style="border:0;margin:0 0 10px;padding:0;font-size:13px">${G.alert}</p>`:""}${mine.length?`<div class="hold">${cards}</div>`:`<p class="sub" style="margin:0">No holdings yet. Acquire a department to start collecting tolls.</p>`}</div>`}
+return `<div class="card"><div class="eb" style="text-align:left;margin:0 0 10px;display:flex;justify-content:space-between"><span>Your holdings</span><span>Tolls collected ${fmt(tot)}</span></div>${G.alert?`<p class="hl now" style="border:0;margin:0 0 10px;padding:0;font-size:13px">${escH(G.alert)}</p>`:""}${mine.length?`<div class="hold">${cards}</div>`:`<p class="sub" style="margin:0">No holdings yet. Acquire a department to start collecting tolls.</p>`}</div>`}
 function upd(){const tl=document.querySelectorAll(".tl");
 T.forEach((t,i)=>{const e=tl[i],o=G.own[i];if(!e)return;const cn="tl"+(o>=0?" owned":"")+(G.P[G.cur].pos==i?" now":"");if(e.className!==cn)e.className=cn;
 if(o>=0)e.style.setProperty("--o",COL[o]);else e.style.removeProperty("--o");
@@ -358,7 +359,7 @@ ${holdings()}<div class="card" style="overflow-x:auto"><table><tr><th>Member</th
 /* ===== batches: create / search / random / friends key (live lobby over Supabase Realtime) ===== */
 const SB={url:"https://agzhxwditnlzdcuqjjfz.supabase.co",key:"sb_publishable_-B_v-SqjFjh_Q8R29CksBQ_nO4KgmYy",lib:"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"};
 const BT={cl:null,dir:null,ch:null,id:"",name:"",pub:true,msgs:[],sid:Math.random().toString(36).slice(2,8),tab:"S",live:0};
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const bhash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
 const bclean=s=>s.replace(/[^\w \-]/g,"").replace(/\s+/g," ").trim().slice(0,24);
 function bme(){const u=(EMB&&EMB.u)||(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user);let n=u&&(u.username||u.first_name);if(!n){try{n=localStorage.getItem("cl_name")}catch(e){}if(!n){n="Guest"+Math.floor(1000+Math.random()*9000);try{localStorage.setItem("cl_name",n)}catch(e){}}}return String(n).replace(/[^\w]/g,"").slice(0,16)||"Guest"}

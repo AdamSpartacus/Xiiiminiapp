@@ -44,7 +44,7 @@ function loadExifr(){
 
 /* ---------- tool ---------- */
 let cur=null;
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pretty=k=>k.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/_/g,' ');
 function fv(v){if(v==null)return'';if(v instanceof Date)return isNaN(v)?'':v.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'medium'});
  if(ArrayBuffer.isView(v)||v instanceof ArrayBuffer)return'[binary, '+v.byteLength+' bytes]';if(Array.isArray(v))return v.map(fv).join(', ');

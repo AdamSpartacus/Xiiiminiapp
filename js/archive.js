@@ -18,6 +18,7 @@ const LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 
 /* hands a file to the device. Telegram's native downloader first (keeps the file exactly as stored), then a normal download link, then the external browser. */
 function deliver(url,name){
+ if(!/^https:\/\//i.test(String(url||""))){toast("Invalid download link");return}
  const t=V.tg.app;
  try{if(t&&typeof t.downloadFile==="function"&&t.isVersionAtLeast&&t.isVersionAtLeast("8.0")){t.downloadFile({url:url,file_name:name});return}}catch(e){}
  try{const a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";a.style.display="none";document.body.appendChild(a);a.click();a.remove();return}catch(e){}
