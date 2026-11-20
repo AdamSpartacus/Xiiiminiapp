@@ -83,14 +83,17 @@ async function loadAccounts(){
  const L=ST?ST.lock_threshold:100,A=Array.isArray(r.accounts)?r.accounts:[];
  $("scAcc").innerHTML=A.length?A.map(a=>{
   const u=a.subject.startsWith("u:"),lk=a.status==="locked";
-  return '<div class="sc-acc"><div class="sc-ah"><div style="min-width:0"><b>'+esc(subj(a))+'</b><small>Score '+(+a.score||0)+' of '+L+(u?"":" · unverified address")+(a.note?" · "+esc(a.note):"")+'</small></div><span class="sc-st '+esc(a.status)+'">'+esc(a.status==="ok"?"ok":a.status==="review"?"manual review":"locked")+'</span></div><div class="sc-bar"><i style="width:'+pct(a.score,L)+'%"></i></div><div class="sc-acts">'+
+  return '<div class="sc-acc"><div class="sc-ah"><div style="min-width:0"><b>'+esc(subj(a))+'</b><small>Score '+(+a.score||0)+' of '+L+(u?"":" · unverified address")+(a.note?" · "+esc(a.note):"")+'</small></div><span class="sc-st '+esc(a.banned?"banned":a.status)+'">'+esc(a.banned?"banned":a.status==="ok"?"ok":a.status==="review"?"manual review":"locked")+'</span></div><div class="sc-bar"><i style="width:'+pct(a.score,L)+'%"></i></div><div class="sc-acts">'+
   (a.status!=="review"&&!lk?'<button type="button" class="lbt" data-a="sec_review" data-s="'+esc(a.subject)+'">Flag for review</button>':"")+
   (u&&!lk?'<button type="button" class="lbt" data-a="sec_lock" data-s="'+esc(a.subject)+'">Lock</button>':"")+
   (lk?'<button type="button" class="lbt on" data-a="sec_unlock" data-s="'+esc(a.subject)+'">Unlock</button>':"")+
+  (u&&!a.banned?'<button type="button" class="lbt" data-a="sec_ban" data-s="'+esc(a.subject)+'">Ban</button>':"")+
+  (u&&a.banned?'<button type="button" class="lbt on" data-a="sec_unban" data-s="'+esc(a.subject)+'">Unban</button>':"")+
   (a.score>0||a.status!=="ok"?'<button type="button" class="lbt" data-a="sec_reset" data-s="'+esc(a.subject)+'">Clear score</button>':"")+'</div></div>'}).join(""):'<p class="note">No accounts have a risk score.</p>'}
 async function act(a,s){
  if(a==="sec_lock"&&!confirm("Lock this account? It will lose access until you unlock it."))return;
  if(a==="sec_reset"&&!confirm("Clear this score and set the account back to OK?"))return;
+ if(a==="sec_ban"&&!confirm("Ban this account? They will lose access everywhere until you unban them."))return;
  let r;try{r=await api[a]({subject:s})}catch(e){r=null}
  if(r&&r.ok){hap("medium");msg("Done.");loadAccounts();loadStats()}else msg((r&&r.error)||"That did not work. Try again.")}
 
