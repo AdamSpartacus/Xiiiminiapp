@@ -2,12 +2,12 @@ try{
 /* Corrupted Archive (members) + Archive Upload (founder only).
    Storage is Cloudflare R2, reached through the illuminati-corrupted edge function. Every rule is enforced on the server; this page only shows it.
    - Metadata: files are uploaded as the raw bytes of the selected file (no canvas, no re-encoding, no resizing) and downloaded back unchanged.
-   - Images and audio can be saved, unlimited times. Videos are stream-only: no Save button, no download action on the server, and the player has its download / PiP / cast controls off. */
+   - Every type of file can be saved, unlimited times: images, audio, video (mkv, mp4, mov, webm, avi ...) and any other file. Videos can also be streamed in the app. */
 (function(V){
 const $=id=>document.getElementById(id),api=V.services.api;
-const MB=1048576,LIM={image:50*MB,audio:200*MB,video:500*MB};
-const EXT={jpg:"image",jpeg:"image",png:"image",webp:"image",gif:"image",heic:"image",heif:"image",tif:"image",tiff:"image",avif:"image",bmp:"image",mp3:"audio",m4a:"audio",m4b:"audio",aac:"audio",wav:"audio",wave:"audio",bwf:"audio",ogg:"audio",oga:"audio",opus:"audio",flac:"audio",weba:"audio",wma:"audio",aif:"audio",aiff:"audio",aifc:"audio",amr:"audio",awb:"audio",caf:"audio",mka:"audio",mp2:"audio",mpga:"audio",ac3:"audio",eac3:"audio",dts:"audio",mid:"audio",midi:"audio",ape:"audio",wv:"audio","3ga":"audio",mp4:"video",m4v:"video",webm:"video",mov:"video"};
-const kindOf=f=>{const t=(f.type||"").toLowerCase(),e=EXT[(f.name.split(".").pop()||"").toLowerCase()];return/^image\//.test(t)?"image":/^audio\//.test(t)?"audio":/^video\//.test(t)?"video":e||""};
+const MB=1048576,LIM={image:50*MB,audio:200*MB,video:500*MB,file:500*MB};
+const EXT={jpg:"image",jpeg:"image",png:"image",webp:"image",gif:"image",heic:"image",heif:"image",tif:"image",tiff:"image",avif:"image",bmp:"image",mp3:"audio",m4a:"audio",m4b:"audio",aac:"audio",wav:"audio",wave:"audio",bwf:"audio",ogg:"audio",oga:"audio",opus:"audio",flac:"audio",weba:"audio",wma:"audio",aif:"audio",aiff:"audio",aifc:"audio",amr:"audio",awb:"audio",caf:"audio",mka:"audio",mp2:"audio",mpga:"audio",ac3:"audio",eac3:"audio",dts:"audio",mid:"audio",midi:"audio",ape:"audio",wv:"audio","3ga":"audio",mp4:"video",m4v:"video",webm:"video",mov:"video",mkv:"video",avi:"video",wmv:"video",flv:"video",mpg:"video",mpeg:"video",ts:"video","3gp":"video","3g2":"video",ogv:"video",mts:"video",m2ts:"video",vob:"video",divx:"video",f4v:"video",asf:"video",mxf:"video",rm:"video",rmvb:"video"};
+const kindOf=f=>{const t=(f.type||"").toLowerCase(),e=EXT[(f.name.split(".").pop()||"").toLowerCase()];return/^image\//.test(t)?"image":/^audio\//.test(t)?"audio":/^video\//.test(t)?"video":e||"file"};
 const h=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
 const fmtSize=n=>n>=MB*1024?(n/MB/1024).toFixed(1)+" GB":n>=MB?(n/MB).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
 const fmtDate=s=>{try{return new Date(s).toLocaleDateString()}catch(e){return""}};
@@ -44,9 +44,7 @@ function videoBox(x){
   if(!r||!r.ok||!r.url){w.dataset.b="";l.textContent=(r&&r.error)||"Could not load the video.";return}
   if(vid)try{vid.pause()}catch(e){}
   const v=document.createElement("video");v.className="ar-v";v.src=r.url;v.controls=true;v.autoplay=true;v.playsInline=true;v.preload="metadata";
-  v.setAttribute("controlsList","nodownload noremoteplayback");v.disablePictureInPicture=true;v.disableRemotePlayback=true;
-  v.addEventListener("contextmenu",e=>e.preventDefault());
-  v.onerror=()=>toast("This video could not be played.");
+    v.onerror=()=>toast("This video format cannot be played here. Tap Save original to download it.");
   w.replaceWith(v);vid=v};
  w.onclick=go;w.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}};
  return w}
@@ -57,8 +55,7 @@ function card(x){
  if(x.kind==="image"&&x.url){const im=document.createElement("img");im.className="ar-thumb";im.loading="lazy";im.decoding="async";im.alt=x.title;im.src=x.url;im.onclick=()=>openLb(x);im.onerror=stale;c.appendChild(im)}
  else if(x.kind==="video")c.appendChild(videoBox(x));
  if(x.kind==="audio"&&x.url){const a=document.createElement("audio");a.controls=true;a.preload="none";a.src=x.url;a.onerror=stale;body.appendChild(a)}
- if(x.saveable){const act=h("div","ar-act"),b=h("button","btn","Save original");b.type="button";b.onclick=()=>save(x,b);act.appendChild(b);body.appendChild(act)}
- else body.appendChild(h("small","ar-lock","Stream only. This video cannot be saved."));
+ if(x.saveable!==false){const act=h("div","ar-act"),b=h("button","btn","Save original");b.type="button";b.onclick=()=>save(x,b);act.appendChild(b);body.appendChild(act)}
  c.appendChild(body);return c}
 function draw(){
  stopVideo();stopAudio();
@@ -73,6 +70,9 @@ async function load(){
  busy=false;
  if(!r||!r.ok){if(r&&r.status==="locked")return;if(!ITEMS.length)$("arList").textContent="";$("arNote").textContent=(r&&r.error)||"Could not load the archive.";return}
  ITEMS=Array.isArray(r.items)?r.items:[];loadedAt=Date.now();draw()}
+/* "Files" tab and upload hint are added here so only this script needs deploying */
+if(!$("arTabs").querySelector('[data-f="file"]')){const b=h("button",null,"Files");b.type="button";b.dataset.f="file";b.setAttribute("aria-pressed","false");$("arTabs").appendChild(b)}
+{const sp=document.querySelector("#auDrop span");if(sp)sp.textContent="any file: images, audio, video (mkv, mp4 ...), documents \u00b7 or drop them here"}
 $("arTabs").addEventListener("click",e=>{const b=e.target.closest("button[data-f]");if(!b)return;FILT=b.dataset.f;
  $("arTabs").querySelectorAll("button").forEach(k=>k.setAttribute("aria-pressed",String(k===b)));draw();hap()});
 
@@ -111,7 +111,7 @@ function leave(){OK=false;okAt=0;$("auGate").hidden=false;$("auApp").hidden=true
 
 /* queue */
 function mkRow(it){
- const el=h("div","ar-q"),top=h("div","ar-row"),nm=h("div","ar-nm"),b=h("b",null,it.f.name),s=h("small",null,it.kind+" · "+fmtSize(it.f.size)+(it.kind==="video"?" · stream only":""));
+ const el=h("div","ar-q"),top=h("div","ar-row"),nm=h("div","ar-nm"),b=h("b",null,it.f.name),s=h("small",null,it.kind+" · "+fmtSize(it.f.size)+"");
  nm.append(b,s);const x=h("button","ar-x","×");x.type="button";x.setAttribute("aria-label","Remove "+it.f.name);
  x.onclick=()=>{if(it.state==="up")return;Q=Q.filter(k=>k!==it);el.remove();sync()};
  top.append(nm,x);
@@ -131,7 +131,6 @@ function addFiles(list){
  [...list].forEach(f=>{
   const kind=kindOf(f);
   if(!f.size){msgs.push(f.name+" is empty.");return}
-  if(!kind){msgs.push(f.name+" is not an image, audio or video file.");return}
   if(f.size>LIM[kind]){msgs.push(f.name+" is too large (max "+LIM[kind]/MB+" MB for "+kind+").");return}
   if(Q.some(k=>k.f.name===f.name&&k.f.size===f.size&&k.f.lastModified===f.lastModified))return;
   if(Q.length>=20){msgs.push("Up to 20 files at a time.");return}
