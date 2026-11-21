@@ -253,7 +253,7 @@ const cnt=p=>G.own.filter(o=>o==p.i).length;
 const score=(p,e)=>p.cash+G.own.reduce((s,o,i)=>o==p.i?s+T[i][3]:s,0)+p.inf*150+(e&&OBJ[p.ob].f(p)?500:0);
 const leader=()=>G.P.reduce((b,p)=>score(p)>score(G.P[b])?p.i:b,0);
 const say=s=>G.log.unshift(s);
- const escH=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),cleanN=t=>String(t==null?"":t).replace(/[^\w]/g,"").slice(0,16)||"Player";
+ const escH=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),cleanN=t=>String(t==null?"":t).replace(/[^\w]/g,"").slice(0,16)||"Player",cleanHist=h=>{const o={};if(h&&typeof h==="object")for(const k of Object.keys(h)){const e=h[k];if(!e||typeof e!=="object")continue;o[k]={...e,n:+e.n||0,sum:+e.sum||0,last:e.last&&typeof e.last==="object"?{...e.last,who:cleanN(e.last.who),amt:+e.last.amt||0,r:+e.last.r||0}:e.last}}return o};
 const toll=i=>{const o=G.own[i];return(Math.round(T[i][3]*.05)*5+G.fl.toll)*(grp(T[i][4]).every(k=>G.own[k]==o)?2:1)};
 function setLen(n){LEN=n;menu()}
 let _rest="";function setRest(h){if(h===_rest)return;_rest=h;$("#rest").innerHTML=h}
@@ -267,7 +267,7 @@ function gAdopt(v){if(!GM||!v||!v.s||!Array.isArray(v.s.P))return;
  if(typeof v.q==="number"){if(v.q<GM.q)return;GM.q=v.q}
  if(typeof v.ob==="number")GM.ob=v.ob;
  const s=v.s,n=s.P.length,me=GM.me,R=i=>i<0?i:(i-me+n)%n,first=!G;
- const P=new Array(n);s.P.forEach(p=>{const j=R(p.i);P[j]={i:j,n:cleanN(p.n),cash:p.cash,inf:p.inf,pos:p.pos,out:!!p.out,away:!!p.away,ob:typeof p.ob==="number"?p.ob:0,earned:p.earned||0}});
+ const P=new Array(n);s.P.forEach(p=>{const j=R(p.i);P[j]={i:j,n:cleanN(p.n),cash:+p.cash||0,inf:+p.inf||0,pos:+p.pos||0,out:!!p.out,away:!!p.away,ob:typeof p.ob==="number"?p.ob:0,earned:+p.earned||0}});
  P[0].ob=GM.ob;
  const own=s.own.map(o=>R(o)),mine=s.cur===me,ph0=s.ph;let ph="wait";
  if(ph0==="over")ph="over";
@@ -277,8 +277,8 @@ function gAdopt(v){if(!GM||!v||!v.s||!Array.isArray(v.s.P))return;
  else if(ph0==="bid"&&s.auc)ph="bid";
  else if(ph0==="vote"&&s.vote&&!(s.vote.done||[]).includes(me)&&!P[0].away&&!P[0].out)ph="vote";
  const g=G||{sel:null,alert:"",flash:null,rolling:0};
- g.end=s.end;g.R=s.R;g.r=s.r;g.cur=R(s.cur);g.chair=R(s.chair);g.pot=s.pot;g.log=(Array.isArray(s.log)?s.log:[]).slice(0,40).map(x=>escH(x).replace(/&lt;(\/?)b&gt;/g,"<$1b>"));g.dice=s.dice||[0,0];g.fl=s.fl;g.own=own;g.hist=s.hist||{};g.P=P;
- g.vote=s.vote?{t:s.vote.t,d:s.vote.d,done:(s.vote.done||[]).map(R)}:null;
+ g.end=s.end;g.R=s.R;g.r=s.r;g.cur=R(s.cur);g.chair=R(s.chair);g.pot=s.pot;g.log=(Array.isArray(s.log)?s.log:[]).slice(0,40).map(x=>escH(x).replace(/&lt;(\/?)b&gt;/g,"<$1b>"));g.dice=(Array.isArray(s.dice)?s.dice:[0,0]).slice(0,2).map(x=>+x||0);g.fl=s.fl;g.own=own;g.hist=cleanHist(s.hist);g.P=P;
+ g.vote=s.vote?{t:escH(s.vote.t),d:escH(s.vote.d),done:(s.vote.done||[]).map(R)}:null;
  g.need=s.tc?s.tc.need:0;g.sp=ph0;g.off=(typeof s.t==="number"?s.t:Date.now())-Date.now();g.dl=s.dl||0;g.away=P[0].away?1:0;g.out=P[0].out;
  g.auc=s.auc?{k:s.auc.k,seller:R(s.auc.seller),bid:s.auc.bid,top:R(s.auc.top),ask:s.auc.next,waiting:s.auc.ask===me?1:0}:null;
  g.ph=ph;if(g.sel!=null&&ph0!=="over"&&false)g.sel=null;

@@ -39,11 +39,11 @@ async function load(silent){
  if(!S&&active())errGate((r&&r.error)||"Could not load the votes. Check your connection and try again.");
  else if(!silent)toast((r&&r.error)||"Could not refresh the votes.")}
 
-const turnoutLine=p=>"Turnout "+p.turnout+" of "+p.eligible+" ("+pc(p.turnout,p.eligible)+"%), "+p.min_part+"% needed";
+const turnoutLine=p=>"Turnout "+(+p.turnout||0)+" of "+(+p.eligible||0)+" ("+pc(p.turnout,p.eligible)+"%), "+(+p.min_part||0)+"% needed";
 function meter(p,contest){const t=p.turnout,s=pc(p.yes,t);
- if(contest)return'<div class="vt-meter" role="img" aria-label="'+s+'% of the votes"><i class="s" style="width:'+s+'%"></i></div><div class="vt-nums"><span>Votes <b>'+s+'%</b> <small>'+p.yes+'</small></span></div>';
+ if(contest)return'<div class="vt-meter" role="img" aria-label="'+s+'% of the votes"><i class="s" style="width:'+s+'%"></i></div><div class="vt-nums"><span>Votes <b>'+s+'%</b> <small>'+(+p.yes||0)+'</small></span></div>';
  const o=pc(p.no,t);
- return'<div class="vt-meter" role="img" aria-label="Support '+s+'%, oppose '+o+'%"><i class="s" style="width:'+s+'%"></i><i class="o" style="width:'+o+'%"></i><b class="tk" style="left:'+p.pass_pct+'%"></b></div><div class="vt-nums"><span>Support <b>'+s+'%</b> <small>'+p.yes+'</small></span><span>Oppose <b>'+o+'%</b> <small>'+p.no+'</small></span></div>'}
+ return'<div class="vt-meter" role="img" aria-label="Support '+s+'%, oppose '+o+'%"><i class="s" style="width:'+s+'%"></i><i class="o" style="width:'+o+'%"></i><b class="tk" style="left:'+(+p.pass_pct||0)+'%"></b></div><div class="vt-nums"><span>Support <b>'+s+'%</b> <small>'+(+p.yes||0)+'</small></span><span>Oppose <b>'+o+'%</b> <small>'+(+p.no||0)+'</small></span></div>'}
 function outcome(p,rv){const t=p.turnout,tp=pc(p.yes,t),np=pc(p.no,t),vs=rv?" to "+pl(rv.yes,"vote"):"";
  if(p.status==="passed")return p.reason==="contest"?"Won the contest with "+pl(p.yes,"vote")+vs+".":"Passed with "+tp+"% support.";
  if(p.status==="failed")return"Failed. "+np+"% of the votes opposed it.";
@@ -66,7 +66,7 @@ function acts(p,contest){let a="";
  return a?'<div class="vt-act">'+a+'</div>':""}
 function card(p,contest,rv){
  const ex=more.has(p.id),long=p.body.length>240||p.body.split("\n").length>4,open=p.status==="open";
- let h='<article class="vt-card'+(ex?" x":"")+'"><div class="vt-top"><span class="vt-pill '+p.status+'">'+PILL[p.status]+'</span><span class="vt-who">'+esc(p.author)+(p.round>1?" \u00b7 Round "+p.round:"")+'</span></div>'
+ let h='<article class="vt-card'+(ex?" x":"")+'"><div class="vt-top"><span class="vt-pill '+esc(p.status)+'">'+esc(PILL[p.status])+'</span><span class="vt-who">'+esc(p.author)+(p.round>1?" \u00b7 Round "+p.round:"")+'</span></div>'
   +'<h3 class="vt-t">'+esc(p.title)+'</h3><p class="vt-body">'+esc(p.body)+'</p>'+(long?'<button class="vt-more" type="button" data-vt="more" data-id="'+esc(p.id)+'">'+(ex?"Show less":"Read more")+'</button>':"")
   +meter(p,contest);
  if(!contest)h+='<p class="vt-meta">'+turnoutLine(p)+(open?" \u00b7 "+left(p.closes-now()):"")+'</p>';
@@ -81,10 +81,10 @@ function paint(){
  if(!S)return;const st=S.settings,P=S.proposals||[];
  $("vtGate").hidden=true;$("vtApp").hidden=false;
  $("vtCount").textContent=pl(S.electorate,"voting member");
- $("vtRules").innerHTML='<div><b>'+st.min_part+'%</b><small>of members must vote</small></div><div><b>&gt;'+st.pass_pct+'%</b><small>support to pass</small></div><div><b>&gt;'+st.fail_pct+'%</b><small>opposed to fail</small></div>';
+ $("vtRules").innerHTML='<div><b>'+(+st.min_part||0)+'%</b><small>of members must vote</small></div><div><b>&gt;'+(+st.pass_pct||0)+'%</b><small>support to pass</small></div><div><b>&gt;'+(+st.fail_pct||0)+'%</b><small>opposed to fail</small></div>';
  $("vtLead").textContent="A request passes with more than "+st.pass_pct+"% support and fails with more than "+st.fail_pct+"% opposition. Anything in between returns to its author for revision. If two competing requests are raised, members back one and the most votes passes.";
  const EMB='<span class="vt-emb" aria-hidden="true"></span>',ARW='<svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 14h19M16 7l7 7-7 7"/></svg>';
- $("vtBar").innerHTML=S.proposer?'<div class="vt-role"><div class="vt-rh">'+EMB+'<i></i><div class="vt-rt"><strong>Proposer</strong><em>Request authority</em></div><span class="vt-cnt">'+S.open_mine+' / 2</span></div><p class="vt-rp">You can raise official requests and put up a competing request against another proposer\u2019s.</p><button class="vt-raise" id="vtNew" type="button"'+(S.open_mine>=2?" disabled":"")+'>Raise a request'+ARW+'</button></div>':"";
+ $("vtBar").innerHTML=S.proposer?'<div class="vt-role"><div class="vt-rh">'+EMB+'<i></i><div class="vt-rt"><strong>Proposer</strong><em>Request authority</em></div><span class="vt-cnt">'+(+S.open_mine||0)+' / 2</span></div><p class="vt-rp">You can raise official requests and put up a competing request against another proposer\u2019s.</p><button class="vt-raise" id="vtNew" type="button"'+(S.open_mine>=2?" disabled":"")+'>Raise a request'+ARW+'</button></div>':"";
  const nb=$("vtNew");if(nb)nb.onclick=()=>openForm("new");
  const gs=groups(P),open=gs.filter(g=>g.items[0].status==="open"),rev=gs.filter(g=>g.items[0].status==="revision"),done=gs.filter(g=>g.items[0].status!=="open"&&g.items[0].status!=="revision");
  $("vtList").innerHTML=P.length?sec("Open for voting",open)+sec("Returned for revision",rev)+sec("Decided",done):'<div class="vt-empty"><div class="vt-er"><u></u><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M9 3.5h12.5L27 9v21.5H9z"/><path d="M21 3.5V10h6"/><path d="M13 16.5h10M13 21h10M13 25.5h6"/></svg><u></u></div><strong>No requests yet</strong><p>When a proposer raises an official request, it appears here for every member to vote on.</p></div>';

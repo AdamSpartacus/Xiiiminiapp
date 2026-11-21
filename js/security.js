@@ -60,7 +60,7 @@ function drawSev(){
 function drawEvents(){
  $("scBody").innerHTML=rows.map(r=>{
   const unv=!r.user_id,id=r.user_id||r.claimed_user_id,ev=JSON.stringify(r.evidence||{}),x=open.has(String(r.id));
-  return '<tr class="sc-r" data-id="'+r.id+'"><td class="u">'+esc(who(id)||"unknown")+(unv?'<span class="sc-unv">unverified</span>':"")+'</td><td class="t">'+esc(when(r.created_at))+'</td><td class="ip">'+esc(r.ip||"")+'</td><td class="d" title="'+esc(r.device||"")+'">'+esc(r.device||"")+'</td><td>'+esc(label(r.reason))+(r.points?' <b style="color:var(--text)">+'+(+r.points)+'</b>':"")+(r.source==="client"?' <span class="sc-unv" style="display:inline">device-reported</span>':"")+'</td><td><span class="sc-sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="ev">'+esc(ev)+'</td></tr>'+
+  return '<tr class="sc-r" data-id="'+esc(r.id)+'"><td class="u">'+esc(who(id)||"unknown")+(unv?'<span class="sc-unv">unverified</span>':"")+'</td><td class="t">'+esc(when(r.created_at))+'</td><td class="ip">'+esc(r.ip||"")+'</td><td class="d" title="'+esc(r.device||"")+'">'+esc(r.device||"")+'</td><td>'+esc(label(r.reason))+(r.points?' <b style="color:var(--text)">+'+(+r.points)+'</b>':"")+(r.source==="client"?' <span class="sc-unv" style="display:inline">device-reported</span>':"")+'</td><td><span class="sc-sev '+esc(r.severity)+'">'+esc(r.severity)+'</span></td><td class="ev">'+esc(ev)+'</td></tr>'+
   (x?'<tr class="sc-x"><td colspan="7"><pre>'+esc(JSON.stringify(r.evidence||{},null,2))+'</pre></td></tr>':"")}).join("");
  $("scEmpty").hidden=rows.length>0}
 async function ensureNames(){
