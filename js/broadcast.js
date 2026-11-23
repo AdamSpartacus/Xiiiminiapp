@@ -202,7 +202,7 @@ function boot(){
   return stage}
  function card(x){
   const c=h("div","nb-item"),b=h("div","nb-body");
-  b.appendChild(h("b",null,x.title||"Broadcast"));b.appendChild(h("small",null,[x.size?fmtSize(x.size):"",x.created_at?fmtDate(x.created_at):""].filter(Boolean).join(" · ")));
+  b.appendChild(h("small",null,x.size?fmtSize(x.size):""));
   c.append(player(x),b);return c}
  function draw(){
   stopVideo();const box=$("nbList");box.textContent="";
