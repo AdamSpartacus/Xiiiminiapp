@@ -349,7 +349,9 @@ async function tick(){
     leaveLocal(r.error||'That batch is full or in progress.');return}
   if(r&&r.status==='denied'){leaveLocal(r.error||'Access denied.');return}
   if(r&&r.ok)apply(r);
-  schedule(G&&!G.over?900:1500)}
+  /* While a game is running, or all 5 seats are filled (a game can start any moment), keep the fast refresh the game is tuned for.
+     A lobby that is still waiting for members changes slowly, so it polls half as often. */
+  schedule(G&&!G.over?900:(ST&&Array.isArray(ST.roster)&&ST.roster.length>=5?1500:3000))}
 function apply(r){
   if(r.left!=null)setLeft(r.left);
   ST=r;G=r.game||null;settled=true;
