@@ -4,7 +4,7 @@ try{
    Access: the sidebar button is only shown to the owner, AND the tool refuses to open unless the server confirms the owner (owner-only edge function call, same backend rule as Portal lock). Fails closed. */
 (function(V){
 const $=id=>document.getElementById(id),enc=new TextEncoder(),MAGIC=[0x56,0x45,0x49,0x4C,0x31]; /* "VEIL1" */
-const TTL=120000,TIMEOUT=12000;
+const TTL=600000,TIMEOUT=12000;
 const MAXAV=200*1048576; /* audio / video are read on the device; keep them within what a phone can handle */
 let OK=false,okAt=0,gating=false,img=null,kind='image',file=null,name='image',origBuf=null,url=null,pvUrl=null,busy=false,stop=false;
 const say=m=>{try{V.tg.app.showAlert(m)}catch(e){alert(m)}};

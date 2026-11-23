@@ -43,7 +43,7 @@ Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:
 Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{if(window.parent!==window){if(action==="cb_leave")parent.postMessage({clv:"red",op:"leave"},"*");else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)parent.postMessage({clv:"red",op:"room",batch:String(data.batch).slice(0,64)},"*")}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/"+(/^cg_/.test(action)?"conclave-game":"conclave-batch"),{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
-setInterval(()=>{if(_ok)recheck(true)},60000);
+setInterval(()=>{if(_ok&&!document.hidden)recheck(true)},60000);
 recheck(true)})();
 ;
 /* ---- 2. 3D intro ---- */
@@ -369,7 +369,7 @@ function bload0(){if(window.supabase&&BT.cl)return Promise.resolve();return new 
 function bsub(ch){return new Promise((ok,bad)=>{const t=setTimeout(()=>bad(new Error("timeout")),8000);ch.subscribe(st=>{if(st==="SUBSCRIBED"){clearTimeout(t);ok()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"){clearTimeout(t);bad(new Error(st))}})})}
 function bdirList(q){q=(q||"").toLowerCase();return(BT.list||[]).map(x=>({b:x.batch,o:x.o||"a member",n:x.n||0,live:!!x.live,full:!!x.full})).filter(x=>!q||x.b.toLowerCase().includes(q))}
 async function bpoll(){const r=await window.CLCALL("cb_list",{q:""});if(r&&r.ok&&Array.isArray(r.batches)){BT.list=r.batches;BT.lok=true;if($("#bRes"))bRender()}}
-async function bdir(){if(BT.dir)return;if(!(await window.CLRECHECK()))throw new Error("members only");await bpoll();if(!BT.lok)throw new Error("list");if(!BT.dir)BT.dir=setInterval(bpoll,2500)}
+async function bdir(){if(BT.dir)return;if(!(await window.CLRECHECK()))throw new Error("members only");await bpoll();if(!BT.lok)throw new Error("list");if(!BT.dir)BT.dir=setInterval(()=>{if(!document.hidden)bpoll()},10000)}
 function bAdvert(){}
 function bShell(h){GEN++;_rest="";G=null;$("main").innerHTML=h}
 function batchUI(tab){BT.tab=tab||BT.tab||"S";

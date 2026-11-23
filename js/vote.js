@@ -133,7 +133,7 @@ $("vtSend").onclick=async()=>{
 
 function enter(){
  if(S)paint();else gate(SP+"<p>Loading the votes</p>");
- load(true);clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form)load(true)},20000)}
+ load(true);clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form)load(true)},60000)}
 function leave(){clearInterval(timer);timer=0;closeForm()}
 
 /* sidebar badge: how many open requests are waiting for this member's vote */

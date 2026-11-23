@@ -3,7 +3,7 @@ try{
    Members only: before the tool opens, the Supabase edge function "illuminati-gate" verifies the Telegram initData (opened from the channel) and the membership. Fails closed. */
 (function(V){
 const $=s=>document.querySelector(s),hap=t=>{try{V.tg.haptic(t)}catch(e){}};
-const NETERR="Network error. Try again.",TTL=120000,TIMEOUT=12000,REQUIRE_PROFILE=false;
+const NETERR="Network error. Try again.",TTL=600000,TIMEOUT=12000,REQUIRE_PROFILE=false;
 let OK=false,okAt=0,gating=false,XR=null;
 const toTop=()=>{const s=$('#miSheet');if(s)s.scrollTop=0};
 

@@ -209,7 +209,7 @@ function boot(){
   if(!ITEMS.length){box.appendChild(h("p","note","No broadcast yet."));return}
   ITEMS.forEach(x=>box.appendChild(card(x)))}
  async function load(){
-  if(busy)return;busy=true;$("nbNote").textContent="";
+  if(busy)return;if(ITEMS.length&&Date.now()-loadedAt<300000){draw();return}busy=true;$("nbNote").textContent="";
   if(!ITEMS.length)$("nbList").replaceChildren(h("p","note","Loading…"));
   let r;try{r=await api.list()}catch(e){r=null}
   busy=false;

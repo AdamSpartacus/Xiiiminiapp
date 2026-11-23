@@ -166,7 +166,7 @@ function addChat(m,fromPing){
    Realtime only delivers; every rule (who is online, who won) is still decided by the server. The heartbeat keeps running as the fallback. */
 const RT={ws:null,name:"",ref:0,hb:null,retry:0,ok:false,timer:null,poke:0};
 function rtSend(ws,topic,event,payload){try{ws.send(JSON.stringify({topic,event,payload,ref:String(++RT.ref)}))}catch(e){}}
-function rtPoke(){if(RT.poke||!BATCH||decoded)return;RT.poke=setTimeout(()=>{RT.poke=0;if(BATCH&&!decoded)pulse(true)},Math.floor(Math.random()*250))}
+function rtPoke(){if(RT.poke||!BATCH||decoded)return;RT.poke=setTimeout(()=>{RT.poke=0;if(BATCH&&!decoded&&Date.now()-lastP>1500)pulse(true)},Math.floor(Math.random()*250))}
 function rtConnect(){
   if(!RT.name||!BATCH||decoded||typeof WebSocket!=="function")return;
   let ws;try{ws=new WebSocket(PROJECT.replace(/^http/,"ws")+"/realtime/v1/websocket?apikey="+encodeURIComponent(KEY)+"&vsn=1.0.0")}catch(e){return}
@@ -232,7 +232,7 @@ async function join(b){
   $("nsOn").textContent="nodes online: 0/"+CFG.NEED+" \u00b7 awaiting others";
   show("nsGame");waiting(WAIT);rcOK=false;rcBusy=false;rcPaint();
   await syncClock();if(BATCH!==mine)return;
-  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=!RT.ok&&Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,30000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
+  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=!RT.ok&&Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,120000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
 function stopGame(){rtClose();timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
 /* offline: stop heartbeats, tell the server (it removes an empty random batch itself) */
 function goOffline(){
@@ -363,7 +363,7 @@ $('spCf').addEventListener('submit',async e=>{e.preventDefault();const x=$('spCi
   let r;try{r=await api.spore_chat({batch,text:x})}catch(e){r=null}
   if(!r||!r.ok)sys((r&&r.error)||'Could not send.');else schedule(0)});
 setInterval(()=>{const n=Date.now(),w=Math.floor(n/CW);if(w!==cw){cw=w;$('spChat').textContent='';sys('Chat reset. Previous messages are gone.')}const s=Math.ceil(((cw+1)*CW-n)/1000);$('spCc').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
-setInterval(()=>{if(alive&&!batch&&!document.hidden&&!$('spPS').hidden&&!$('spPick').hidden)search()},5000);
+setInterval(()=>{if(alive&&!batch&&!document.hidden&&!$('spPS').hidden&&!$('spPick').hidden)search()},20000);
 /* ---------- game UI ---------- */
 function leftMs(){return G&&!G.over?Math.max(0,DUR*1000-(elAt+performance.now()-tAt)):G&&G.over?0:DUR*1000}
 function shown(i){const n=G&&G.nodes[i]?G.nodes[i]:null,s=scan[i];if(s&&s.u>Date.now())return s.inf?'inf':'ok';return n&&n.i?'inf':'ok'}
@@ -420,18 +420,18 @@ try{
 const $=(s,r)=>(r||document).querySelector(s),api=V.services.api,esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
 let cur="intro",back="done",entered=false,M=[],BI=[],nb=0,LB={remove:"Delete",ban:"Ban",unban:"Unban"};
 /* Portal lock (member side): the server decides and enforces it on every request; this page only shows the notice and freezes the screen */
-let PL=null,plBusy=false;
+let PL=null,plBusy=false,plLast=0;
 const leftTxt=ms=>{let s=Math.max(0,Math.ceil(ms/1000));const d=Math.floor(s/86400);s%=86400;const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;const p=n=>String(n).padStart(2,"0");return(d?d+"d ":"")+p(h)+":"+p(m)+":"+p(s)};
 function plTick(){if(!PL)return;const c=$("#plc");if(!PL.until){c.textContent="The founder will reopen the portal.";return}
  const rem=Date.parse(PL.until)-(Date.now()+PL.off);if(rem<=0){c.textContent="Reopening\u2026";plCheck();return}c.textContent="Reopens in "+leftTxt(rem)}
 function showLock(r){if(!r)return;const first=!PL;PL={until:r.until||null,off:(+r.now||Date.now())-Date.now()};$("#plm").textContent=String(r.message||"");plTick();if(!first)return;
  document.body.classList.add("plocked");["main","#tabs","#cats","#fbtn","#lbtn"].forEach(q=>document.querySelectorAll(q).forEach(e=>{e.inert=true}));
  try{glStop()}catch(e){}setInterval(plTick,1000)}
-async function plCheck(){if(plBusy||document.body.classList.contains("owner"))return;plBusy=true;let r;try{r=await api.lock_status()}catch(e){r=null}plBusy=false;
+async function plCheck(){if(plBusy||document.body.classList.contains("owner"))return;plBusy=true;plLast=Date.now();let r;try{r=await api.lock_status()}catch(e){r=null}plBusy=false;
  if(!r||!r.ok)return;if(r.locked)showLock(r);else if(PL)location.reload()}
 V.onlock=showLock;
-setInterval(()=>{if(!document.hidden&&(PL||entered))plCheck()},10000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered))plCheck()});
+setInterval(()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=120000))plCheck()},10000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=120000))plCheck()});
 
 const meP=api.me().catch(()=>({status:"none"}));
 /* Keep the Telegram name current: on every open (and whenever the app comes back to the foreground) compare it with the saved one and update it if it changed. Silent; ignored if it fails. */
@@ -528,7 +528,7 @@ async function glLoad(){if(glBusy)return;glBusy=true;let r;try{r=await api.genes
  $("#glp").textContent=pct(p);$("#glb").style.width=p+"%";$("#glb").parentNode.setAttribute("aria-valuenow",p.toFixed(2));
  $("#glo").textContent=fmt(r.online);$("#gls").textContent=(+r.stability||0).toFixed(1)+"%";$("#gla").textContent=pct(r.accuracy);
  const st=$("#glst");st.classList.toggle("ok",un);st.textContent=un?"Status: Fully Synchronized":"Status: Awaiting Full Synchronization";paintWallet(un)}
-function glStart(){glStop();glLoad();glT=setInterval(()=>{if(!document.hidden)glLoad()},8000)}
+function glStart(){glStop();glLoad();glT=setInterval(()=>{if(!document.hidden)glLoad()},30000)}
 function glStop(){clearInterval(glT);glT=0}
 
 /* Access Web: locked until a 100-node synchronization is decrypted (the server decides, this only shows it) */
@@ -555,7 +555,7 @@ function draw(){const q=$("#fq").value.trim().toLowerCase(),BS=new Set(BI.concat
  if(orph.length)$("#fl").insertAdjacentHTML("beforeend",'<div class="bh">Banned, no longer a member</div>'+orph.map(id=>'<div class="mem"><div class="mh"><b>'+esc(id)+'<span class="tag">Banned</span></b><div class="ma">'+bt("unban",id)+'</div></div></div>').join(""))}
 $("#fbtn").onclick=async()=>{back=cur;go("founders");await load()};
 /* Live refresh of the members list while the Founders view is open (skipped while a confirm button is armed or a merit tap is in flight) */
-setInterval(async()=>{if(cur!=="founders"||document.hidden||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;const q=$("#fq");const r=await api.list().catch(()=>null);if(!r||!r.ok||cur!=="founders"||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;M=r.members||[];BI=Array.isArray(r.banned_ids)?r.banned_ids:[];nb=Array.isArray(r.banned_ids)?BI.length:(r.banned||0);const y=$("#fl").scrollTop;draw();$("#fl").scrollTop=y},15000);
+setInterval(async()=>{if(cur!=="founders"||document.hidden||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;const q=$("#fq");const r=await api.list().catch(()=>null);if(!r||!r.ok||cur!=="founders"||Object.values(PN).some(v=>v>0)||document.querySelector("#fl [data-arm='1']"))return;M=r.members||[];BI=Array.isArray(r.banned_ids)?r.banned_ids:[];nb=Array.isArray(r.banned_ids)?BI.length:(r.banned||0);const y=$("#fl").scrollTop;draw();$("#fl").scrollTop=y},60000);
 $("#fback").onclick=()=>go(back);
 try{V.tg.app&&V.tg.app.BackButton&&V.tg.app.BackButton.onClick(()=>{if(cur==="founders"||cur==="lock")go(back)})}catch(e){}
 $("#fq").oninput=draw;
