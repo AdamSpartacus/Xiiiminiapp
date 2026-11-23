@@ -176,12 +176,12 @@ function boot(){
    v.setAttribute("disableRemotePlayback","");v.preload="auto";v.draggable=false;
    v.addEventListener("contextmenu",block);v.addEventListener("enterpictureinpicture",()=>{try{document.exitPictureInPicture()}catch(e){}});
    v.src=r.url;
-   const hit=h("div","nb-hit"),wm=h("div","nb-wm",(typeof r.wm==="string"&&r.wm?r.wm.slice(0,60):who())+" · Node Broadcast"),bar=h("div","nb-bar");
+   const hit=h("div","nb-hit"),bar=h("div","nb-bar");
    const pp=h("button");pp.type="button";pp.innerHTML=PLAYI;pp.setAttribute("aria-label","Play or pause");
    const cur=h("span",null,"0:00"),sk=document.createElement("input");sk.type="range";sk.min=0;sk.max=1000;sk.value=0;sk.setAttribute("aria-label","Seek");
    const dur=h("span",null,"0:00"),fs=h("button");fs.type="button";fs.innerHTML=FSI;fs.setAttribute("aria-label","Fullscreen");
    bar.append(pp,cur,sk,dur,fs);
-   poster.remove();stage.append(v,hit,wm,bar);vid=v;
+   poster.remove();stage.append(v,hit,bar);vid=v;
    const toggle=()=>{v.paused?v.play().catch(()=>{}):v.pause()};
    pp.onclick=toggle;hit.onclick=toggle;
    v.onplay=()=>{pp.innerHTML=PAUSEI};v.onpause=()=>{pp.innerHTML=PLAYI};
@@ -197,7 +197,6 @@ function boot(){
    const showErr=m=>{err.textContent=m;err.hidden=!m};
    v.addEventListener("playing",()=>showErr(""));
    fs.onclick=()=>{isFS()?exitFS():enterFS(stage,v)};
-   wmT=setInterval(()=>{wm.style.left=(4+Math.random()*52)+"%";wm.style.top=(8+Math.random()*78)+"%"},4000);
    v.play().catch(()=>{});hap("medium")};
   poster.onclick=start;poster.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();start()}};
   return stage}
