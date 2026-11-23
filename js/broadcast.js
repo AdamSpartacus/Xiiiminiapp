@@ -43,7 +43,7 @@ html body:not(.member):not(.owner) #cats button.nbbtn{display:none!important}
 @media (min-width:700px){.view[data-view=nodebroadcast] .sheet{max-height:calc(100% - 24px)}}
 .nb-logo{display:block;width:150px;max-width:50%;margin:14px auto 4px;border-radius:14px;pointer-events:none;-webkit-user-drag:none;user-select:none}
 .nb-item{margin:14px 0 0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(0,0,0,.35)}
-.nb-body{padding:12px 14px 14px}.nb-body b{display:block;font-size:15px;overflow-wrap:anywhere}.nb-body small{color:var(--dim);font-size:12px}
+.nb-body:empty{display:none}.nb-body{padding:12px 14px 14px}.nb-body b{display:block;font-size:15px;overflow-wrap:anywhere}.nb-body small{color:var(--dim);font-size:12px}
 .nb-stage{position:relative;background:#000;aspect-ratio:16/9;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .nb-stage:fullscreen,.nb-stage:-webkit-full-screen{aspect-ratio:auto;width:100vw;height:100vh;height:100dvh}
 .nb-stage.nb-pfs{position:fixed;left:0;top:0;z-index:2147483000;aspect-ratio:auto;border-radius:0;transform-origin:0 0}
