@@ -105,9 +105,18 @@ async function submit(ans,rd){
   if(!x||!x.ok)setSt((x&&x.error)||"Could not reach the server. Try again next round.","nsbad")}
 async function judge(rd){
   if(decoded||!active||!BATCH)return;
-  const b=BATCH;let x;try{x=await call("sync_round",{batch:b,round:rd})}catch(e){x=null}
+  const b=BATCH;let x;
+  /* The heartbeat reply now carries the win and how many nodes locked in each recent round, so one fresh heartbeat answers what sync_round did.
+     If that heartbeat fails or the server does not send the counts, ask sync_round exactly as before. */
+  rdSeen=undefined;
+  for(let i=0;i<50&&busy;i++)await new Promise(r=>setTimeout(r,100));
   if(b!==BATCH||decoded)return;
-  if(x&&x.ok&&x.won)return win(x);
+  await pulseOnce();
+  if(b!==BATCH||decoded)return;
+  if(Array.isArray(rdSeen)){const e=rdSeen.find(z=>z&&+z.r===rd);x={ok:true,done:e?+e.d||0:0}}
+  else{try{x=await call("sync_round",{batch:b,round:rd})}catch(e){x=null}
+    if(b!==BATCH||decoded)return;
+    if(x&&x.ok&&x.won)return win(x)}
   const n=x&&x.ok?+x.done||0:0;
   if(active)setSt(`SYNC FAILED \u00b7 ${n}/${CFG.NEED} nodes aligned. New sequence generated.`,"nsbad")}
 function win(x){
@@ -131,7 +140,7 @@ function tick(){
   else if(r!==cur){const prev=cur,was=armed;cur=r;armed=true;newPuzzle();setSt("Rebuild your code and lock it in.");if(was)setTimeout(()=>judge(prev),CFG.GRACE)}
   $("nsBarI").style.width=((sn%R)/R*100)+"%";$("nsT").textContent=((R-sn%R)/1000).toFixed(1)}
 /* heartbeat: tells the server this node is online, and brings back the online count, this node's codes, new chat lines and the win */
-let cq=[],again=false,hotAt=0,meN=0,lastP=0;
+let cq=[],again=false,hotAt=0,meN=0,lastP=0,rdSeen;
 const nrm=s=>String(s==null?"":s).replace(/\s+/g," ").trim().slice(0,200);
 /* pulse(): one heartbeat at a time. pulse(true) = "run one right after the one in flight" (used after sending a chat line) */
 async function pulse(force){
@@ -148,6 +157,7 @@ async function pulseOnce(){
   if(r.codes)Object.assign(CODES,r.codes);
   (Array.isArray(r.chat)?r.chat:[]).forEach(m=>addChat(m,true));
   if(typeof r.rt==="string"&&/^ems-[0-9a-f]{24}$/.test(r.rt))rtOpen(r.rt);
+  rdSeen=Array.isArray(r.rd)?r.rd:undefined;
   if(r.won)return win(r);
   online=+r.online||0;
   const was=active;active=online>=CFG.NEED;

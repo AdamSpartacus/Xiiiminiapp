@@ -310,7 +310,7 @@ function gSetup(r){if(!BT.ch||!r||!r.gk||typeof r.me!=="number"||!r.s)return;
  try{const ch=BT.cl.channel("conclave:g:"+r.gk,{config:{private:true,broadcast:{self:false}}});gm.ch=ch;
   ch.on("broadcast",{event:"state"},p=>{if(GM===gm&&p&&p.payload&&p.payload.s)gAdopt({q:p.payload.q,s:p.payload.s})});
   ch.subscribe(()=>{})}catch(e){}
- gm.pt=setInterval(gPoll,2500)}
+ gm.pt=setInterval(gPoll,5000)}
 /* anyone in the batch is pulled into the game when the host starts it */
 async function bEnter(){if(!BT.ch||BT.playing||BT.entering)return;BT.entering=1;
  try{const sn=BT.sn,r=await window.CLCALL("cg_join",{batch:sn});if(r&&r.ok&&r.gk&&BT.ch&&BT.sn===sn&&!BT.playing)gSetup(r)}catch(e){}finally{BT.entering=0}}
