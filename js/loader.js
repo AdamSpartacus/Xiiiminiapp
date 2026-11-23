@@ -13,6 +13,8 @@
       document.head.appendChild(el);
     });
   }
+  /* Node Broadcast tab (independent of the 3D model) */
+  script('js/broadcast.js').catch(function (e) { console.error(e); });
   Promise.all([get(M.json, 'json', 1), get(M.bin, 'arrayBuffer', 1)]).then(function (r) {
     var meta = r[0], buf = r[1], PYR = { col: meta.col, nrm: meta.nrm };
     Object.keys(meta.layout).forEach(function (k) {
