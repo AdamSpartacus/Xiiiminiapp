@@ -7,7 +7,7 @@ try{
 (function(V){
 /* ---- the only place to change if your edge function uses different action names ---- */
 const FN="illuminati-broadcast";
-const ACT={list:"list",stream:"stream",owner:"owner_check",init:"upload_init",commit:"upload_commit",del:"delete"};
+const ACT={list:"list",stream:"watch",owner:"owner_check",init:"upload_init",commit:"upload_commit",del:"delete"};
 const MAXMB=1024;
 const S=V.config&&V.config.supabase;
 const call=a=>async d=>{
@@ -82,7 +82,7 @@ function inject(){
  '<p class="gl-p mi-lead">Official broadcasts from the Backroom Server. Videos are view-only and play only inside this portal.</p>'+
  '<div id="nbList" aria-live="polite"></div><p class="note" id="nbNote" role="status"></p>'+
  '<div id="nbUp" class="nb-up" hidden><p class="eyebrow" style="margin-top:24px">Upload broadcast</p>'+
- '<label class="mi-drop" id="nbDrop" tabindex="0"><input id="nbFile" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" hidden><i>+</i><b>Select broadcast video</b><span>mp4, mov, webm &middot; up to '+(MAXMB/1024)+' GB</span></label>'+
+ '<label class="mi-drop" id="nbDrop" tabindex="0"><input id="nbFile" type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm" hidden><i>+</i><b>Select broadcast video</b><span>mp4, m4v, mov, webm &middot; up to '+(MAXMB/1024)+' GB</span></label>'+
  '<div id="nbQ"></div><button class="btn solid" id="nbGo" type="button" hidden>Upload</button><p class="note" id="nbUNote" role="status"></p></div>'+
  '</div></div></section>')}
 
@@ -123,7 +123,7 @@ function boot(){
    v.setAttribute("disableRemotePlayback","");v.preload="auto";v.draggable=false;
    v.addEventListener("contextmenu",block);v.addEventListener("enterpictureinpicture",()=>{try{document.exitPictureInPicture()}catch(e){}});
    v.src=r.url;
-   const hit=h("div","nb-hit"),wm=h("div","nb-wm",who()+" · Node Broadcast"),bar=h("div","nb-bar");
+   const hit=h("div","nb-hit"),wm=h("div","nb-wm",(typeof r.wm==="string"&&r.wm?r.wm.slice(0,60):who())+" · Node Broadcast"),bar=h("div","nb-bar");
    const pp=h("button");pp.type="button";pp.innerHTML=PLAYI;pp.setAttribute("aria-label","Play or pause");
    const cur=h("span",null,"0:00"),sk=document.createElement("input");sk.type="range";sk.min=0;sk.max=1000;sk.value=0;sk.setAttribute("aria-label","Seek");
    const dur=h("span",null,"0:00"),fs=h("button");fs.type="button";fs.innerHTML=FSI;fs.setAttribute("aria-label","Fullscreen");
@@ -184,7 +184,7 @@ function boot(){
   if(!f)return;
   if(!f.size){n.textContent="That file is empty.";return}
   if(f.size>MAXMB*MB){n.textContent="That file is too large (max "+MAXMB/1024+" GB).";return}
-  if(!/^video\//.test(f.type)&&!/\.(mp4|mov|m4v|webm|mkv)$/i.test(f.name)){n.textContent="Please choose a video file.";return}
+  if(!/^video\//.test(f.type)&&!/\.(mp4|mov|m4v|webm)$/i.test(f.name)){n.textContent="Please choose a video file.";return}
   const el=h("div","nb-q"),nm=h("b",null,f.name),sm=h("small",null,fmtSize(f.size)),ti=document.createElement("input");
   ti.type="text";ti.maxLength=120;ti.placeholder="Title";ti.value=f.name.replace(/\.[^.]+$/,"").slice(0,120);ti.autocomplete="off";
   const bar=h("div","nb-prog"),fill=document.createElement("i");bar.appendChild(fill);const st=h("div","nb-st");
