@@ -45,7 +45,10 @@ html body:not(.member):not(.owner) #cats button.nbbtn{display:none!important}
 .nb-item{margin:14px 0 0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(0,0,0,.35)}
 .nb-body{padding:12px 14px 14px}.nb-body b{display:block;font-size:15px;overflow-wrap:anywhere}.nb-body small{color:var(--dim);font-size:12px}
 .nb-stage{position:relative;background:#000;aspect-ratio:16/9;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
-.nb-stage:fullscreen{aspect-ratio:auto;width:100vw;height:100vh}
+.nb-stage:fullscreen,.nb-stage:-webkit-full-screen{aspect-ratio:auto;width:100vw;height:100vh;height:100dvh}
+.nb-stage.nb-pfs{position:fixed;left:0;top:0;z-index:2147483000;aspect-ratio:auto;border-radius:0;transform-origin:0 0}
+.nb-err{position:absolute;left:0;right:0;top:42%;z-index:3;text-align:center;font-size:13px;color:#ff8a8a;padding:0 16px;pointer-events:none}
+html.nb-lock,html.nb-lock body{overflow:hidden!important}
 .nb-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;-webkit-touch-callout:none;pointer-events:none}
 .nb-poster{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#050506;cursor:pointer;color:var(--text);font-size:13px}
 .nb-poster .nb-pb{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center}
@@ -101,9 +104,59 @@ function boot(){
 
  /* ---------- view-only player ---------- */
  function stopVideo(){
+  try{if(isFS())exitFS()}catch(e){}
   clearInterval(wmT);wmT=0;
   if(vid){try{vid.pause();vid.removeAttribute("src");vid.load()}catch(e){}vid=null}
   document.querySelectorAll("#nbList .nb-stage video").forEach(v=>{try{v.pause();v.removeAttribute("src");v.load()}catch(e){}})}
+
+ /* ---------- fullscreen: real Fullscreen API where it exists, otherwise a landscape pseudo-fullscreen (iPhone has no element fullscreen) ---------- */
+ const TGW=()=>window.Telegram&&Telegram.WebApp;
+ let fsStage=null,fsHome=null,fsMode="",fsWasPlaying=false;
+ const nativeFS=()=>document.fullscreenElement||document.webkitFullscreenElement;
+ const isFS=()=>!!(nativeFS()||fsMode==="pseudo");
+ function fitPseudo(){
+  if(!fsStage||fsMode!=="pseudo")return;
+  const W=window.innerWidth,H=window.innerHeight,s=fsStage.style;
+  if(H>W){s.width=H+"px";s.height=W+"px";s.transform="translateX("+W+"px) rotate(90deg)"}  /* portrait phone: turn the picture sideways */
+  else{s.width=W+"px";s.height=H+"px";s.transform="none"}}
+ function lockLandscape(){
+  try{const o=screen.orientation;if(o&&o.lock)o.lock("landscape").catch(()=>{})}catch(e){}
+  try{const t=TGW();if(t&&t.lockOrientation&&t.isVersionAtLeast&&t.isVersionAtLeast("8.0"))t.lockOrientation()}catch(e){}}
+ function unlockOrientation(){
+  try{const o=screen.orientation;if(o&&o.unlock)o.unlock()}catch(e){}
+  try{const t=TGW();if(t&&t.unlockOrientation&&t.isVersionAtLeast&&t.isVersionAtLeast("8.0"))t.unlockOrientation()}catch(e){}}
+ function tgFull(on){
+  try{const t=TGW();if(!t||!t.isVersionAtLeast||!t.isVersionAtLeast("8.0"))return;
+   if(on&&t.requestFullscreen&&!t.isFullscreen)t.requestFullscreen();
+   if(!on&&t.exitFullscreen&&t.isFullscreen)t.exitFullscreen()}catch(e){}}
+ function enterFS(stage,v){
+  hap("light");fsStage=stage;
+  const canNative=(document.fullscreenEnabled||document.webkitFullscreenEnabled)&&(stage.requestFullscreen||stage.webkitRequestFullscreen);
+  const pseudo=()=>{
+   if(fsMode)return;fsMode="pseudo";fsWasPlaying=!v.paused;
+   fsHome=document.createComment("nb");stage.parentNode.insertBefore(fsHome,stage);
+   document.body.appendChild(stage); /* out of the glass sheet so position:fixed covers the whole screen */
+   stage.classList.add("nb-pfs");document.documentElement.classList.add("nb-lock");
+   tgFull(true);lockLandscape();fitPseudo();
+   if(fsWasPlaying)v.play().catch(()=>{})};
+  if(canNative){
+   let p;try{p=stage.requestFullscreen?stage.requestFullscreen({navigationUI:"hide"}):stage.webkitRequestFullscreen()}catch(e){p=Promise.reject(e)}
+   Promise.resolve(p).then(()=>{fsMode="native";lockLandscape()}).catch(pseudo)}
+  else pseudo()}
+ function exitFS(){
+  if(nativeFS()){try{(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(e){}}
+  if(fsMode==="pseudo"&&fsStage){
+   const stage=fsStage,v=stage.querySelector("video"),was=v&&!v.paused;
+   stage.classList.remove("nb-pfs");stage.style.width=stage.style.height=stage.style.transform="";
+   if(fsHome&&fsHome.parentNode){fsHome.parentNode.insertBefore(stage,fsHome);fsHome.remove()}
+   document.documentElement.classList.remove("nb-lock");
+   tgFull(false);unlockOrientation();
+   if(v&&was)v.play().catch(()=>{})}
+  fsMode="";fsHome=null}
+ const onFsChange=()=>{if(!nativeFS()&&fsMode==="native"){fsMode="";unlockOrientation()}};
+ document.addEventListener("fullscreenchange",onFsChange);document.addEventListener("webkitfullscreenchange",onFsChange);
+ window.addEventListener("resize",fitPseudo);window.addEventListener("orientationchange",()=>setTimeout(fitPseudo,150));
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&fsMode==="pseudo")exitFS()});
  function player(x){
   const stage=h("div","nb-stage"),poster=h("div","nb-poster"),pb=h("span","nb-pb"),lbl=h("span",null,"Tap to watch");
   pb.innerHTML=PLAYI;poster.append(pb,lbl);poster.setAttribute("role","button");poster.tabIndex=0;stage.appendChild(poster);
@@ -139,12 +192,11 @@ function boot(){
    sk.onchange=()=>{drag=false};
    v.onended=()=>{pp.innerHTML=PLAYI};
    v.onerror=()=>{if(Date.now()-loadedAt>0){/* signed link expired or format unsupported: ask for a fresh link once */
-     if(!v._retry){v._retry=1;const t=v.currentTime;api.stream({id:x.id}).then(n=>{if(n&&n.ok&&n.url){v.src=n.url;v.currentTime=t;v.play().catch(()=>{})}else lbl.textContent="Could not play this video."}).catch(()=>{})}}};
-   fs.onclick=()=>{
-    try{if(document.fullscreenElement){document.exitFullscreen();return}
-     if(stage.requestFullscreen){stage.requestFullscreen();return}
-     if(stage.webkitRequestFullscreen){stage.webkitRequestFullscreen();return}
-     if(v.webkitEnterFullscreen)v.webkitEnterFullscreen()}catch(e){}};
+     if(!v._retry){v._retry=1;const t=v.currentTime;api.stream({id:x.id}).then(n=>{if(n&&n.ok&&n.url){v.src=n.url;v.currentTime=t;v.play().catch(()=>{})}else showErr("Could not play this video.")}).catch(()=>showErr("Could not play this video."))}else showErr("Could not play this video.")}};
+   const err=h("div","nb-err");err.hidden=true;stage.appendChild(err);
+   const showErr=m=>{err.textContent=m;err.hidden=!m};
+   v.addEventListener("playing",()=>showErr(""));
+   fs.onclick=()=>{isFS()?exitFS():enterFS(stage,v)};
    wmT=setInterval(()=>{wm.style.left=(4+Math.random()*52)+"%";wm.style.top=(8+Math.random()*78)+"%"},4000);
    v.play().catch(()=>{});hap("medium")};
   poster.onclick=start;poster.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();start()}};
@@ -229,7 +281,7 @@ function boot(){
    if(OK)founderList()}}
  function leave(){stopVideo();OK=false;Q=null;$("nbQ").textContent="";$("nbUp").hidden=true;$("nbGate").hidden=false;$("nbApp").hidden=true}
  /* a signed link lasts a few minutes: nothing is kept on the page when it is hidden */
- document.addEventListener("visibilitychange",()=>{if(document.hidden&&body.dataset.view==="nodebroadcast")document.querySelectorAll("#nbList video").forEach(v=>{try{v.pause()}catch(e){}})});
+ document.addEventListener("visibilitychange",()=>{if(document.hidden&&body.dataset.view==="nodebroadcast")document.querySelectorAll(".nb-stage video").forEach(v=>{try{v.pause()}catch(e){}})});
  /* only this view: stop keyboard save/print shortcuts */
  document.addEventListener("keydown",e=>{if(body.dataset.view==="nodebroadcast"&&(e.ctrlKey||e.metaKey)&&/^[sp]$/i.test(e.key))e.preventDefault()});
  if(V.tools)V.tools.hooks.nodebroadcast={enter,leave};
