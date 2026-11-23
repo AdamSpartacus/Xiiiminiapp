@@ -295,7 +295,7 @@ async function search(){
 }
 const tabs={spTS:'spPS',spTC:'spPC',spTJ:'spPJ'};
 Object.keys(tabs).forEach(k=>$(k).onclick=()=>{Object.keys(tabs).forEach(j=>{$(j).setAttribute('aria-pressed',String(j===k));$(tabs[j]).hidden=j!==k});if(k==='spTS')search()});
-$('spQ').oninput=search;
+let spQt;$('spQ').oninput=()=>{clearTimeout(spQt);spQt=setTimeout(search,300)};
 $('spCf2').onchange=()=>{$('spKw').hidden=!$('spCf2').checked};
 $('spPC').addEventListener('submit',async e=>{
   e.preventDefault();const n=clean($('spCn').value),priv=$('spCf2').checked,k=$('spCk').value.trim(),err=$('spCe');
@@ -520,15 +520,15 @@ async function loadMerits(){const hl=$("#hall");hl.innerHTML='<p class="note">Lo
  if(ok&&typeof r.wallet==="boolean")paintWallet(r.wallet);hl.innerHTML=rows.length?rows.map(m=>'<div class="hr'+(m.you?' me':'')+'"><span class="hk'+(m.rank<=3?' top':'')+'">'+String(m.rank).padStart(2,"0")+'</span><span class="hn"><b>'+esc(m.label||"Anonymous member")+(m.you?'<em>You</em>':'')+'</b><span class="st '+(String(m.status||"Active").toLowerCase()==="active"?"ok":"no")+'">'+esc(m.status||"Active")+'</span></span><span class="hm">'+fmt(m.merits)+'</span></div>').join(""):'<p class="note">No standings yet.</p>'}
 
 /* Genesis Lock: live metrics from the backend (progress = members/150,000, accuracy = merits/1,000,000) */
-let glT=0,glBusy=false;
+let glT=0,glBusy=false,glAt=0;const GL_TTL=6*3600*1000;
 const pct=v=>{v=+v||0;return v>0&&v<0.01?"<0.01%":v>=100?"100%":v.toFixed(2)+"%"};
 function paintWallet(un){document.querySelectorAll(".wallet:not(.web)").forEach(w=>{w.classList.toggle("open",!!un);w.setAttribute("aria-label","BTC Wallet, "+(un?"unlocked":"locked"));const t=w.querySelector(".wt span"),p=w.querySelector(".wp");if(t)t.textContent=un?"Unlocked. Genesis Lock fully synchronized.":(w.id==="glw"?"Unlocks at full synchronization.":"Locked. Not accessible.");if(p)p.textContent=un?"Open":"Locked"})}
-async function glLoad(){if(glBusy)return;glBusy=true;let r;try{r=await api.genesis()}catch(e){r=null}glBusy=false;
- if(!r||!r.ok)return;const p=Math.max(0,Math.min(100,+r.progress||0)),un=!!r.unlocked;
+async function glLoad(){if(glBusy||(glAt&&Date.now()-glAt<GL_TTL))return;glBusy=true;let r;try{r=await api.genesis()}catch(e){r=null}glBusy=false;
+ if(!r||!r.ok)return;glAt=Date.now();const p=Math.max(0,Math.min(100,+r.progress||0)),un=!!r.unlocked;
  $("#glp").textContent=pct(p);$("#glb").style.width=p+"%";$("#glb").parentNode.setAttribute("aria-valuenow",p.toFixed(2));
  $("#glo").textContent=fmt(r.online);$("#gls").textContent=(+r.stability||0).toFixed(1)+"%";$("#gla").textContent=pct(r.accuracy);
  const st=$("#glst");st.classList.toggle("ok",un);st.textContent=un?"Status: Fully Synchronized":"Status: Awaiting Full Synchronization";paintWallet(un)}
-function glStart(){glStop();glLoad();glT=setInterval(()=>{if(!document.hidden)glLoad()},30000)}
+function glStart(){glStop();glLoad();glT=setInterval(()=>{if(!document.hidden)glLoad()},GL_TTL)}
 function glStop(){clearInterval(glT);glT=0}
 
 /* Access Web: locked until a 100-node synchronization is decrypted (the server decides, this only shows it) */

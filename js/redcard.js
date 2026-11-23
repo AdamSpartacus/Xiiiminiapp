@@ -9,7 +9,7 @@ try{
 const api=V.services.api,$=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hap=k=>{try{V.tg.haptic(k||"light")}catch(e){}};
-const LIMIT=5,POLL=3000,FRESH=20000,MISS=3;
+const LIMIT=5,POLL=7000,FRESH=20000,MISS=3;
 const body=document.body;
 
 /* ---------------- red palette + notice ---------------- */
