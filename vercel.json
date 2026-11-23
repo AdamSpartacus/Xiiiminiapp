@@ -49,7 +49,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"
+          "value": "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org; object-src 'none'; base-uri 'self'; form-action 'self'"
         },
         {
           "key": "Strict-Transport-Security",
