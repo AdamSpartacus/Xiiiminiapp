@@ -36,7 +36,7 @@ function announce(){
  clearTimeout(noteT);noteT=setTimeout(()=>note.classList.remove("on"),3200);hap("heavy")}
 
 /* ---------------- which multiplayer room am I in ---------------- */
-let room=null,cnt=0,miss=0,timer=0,busy=false;
+let room=null,cnt=0,miss=0,timer=0,busy=false,lastFold=0;
 const key=r=>r.kind+":"+r.batch;
 function seen(kind,batch){
  const r={kind,batch:String(batch).slice(0,60),t:Date.now()};
@@ -46,21 +46,31 @@ function clear(){room=null;cnt=0;miss=0;setGlow(false);clearInterval(timer);time
 function tick(){
  if(!room)return;
  if(Date.now()-room.t>FRESH){clear();return}
- if(!document.hidden)ping()}
+ if(!document.hidden&&Date.now()-lastFold>12000)ping()}
 async function ping(){
  if(!room||busy||!api.redcard_ping)return;busy=true;const r0=room;let r;
  try{r=await api.redcard_ping({kind:r0.kind,batch:r0.batch})}catch(e){r=null}busy=false;
  if(!room||key(room)!==key(r0)||!r||!r.ok)return;
- const n=Math.max(0,Math.min(99,+r.red||0));
- /* Going up is instant. Going down only counts after MISS answers in a row, so one late heartbeat from the red card can't flash the portal black. */
+ applyCount(Math.max(0,Math.min(99,+r.red||0)))}
+/* Going up is instant. Going down only counts after MISS answers in a row, so one late heartbeat from the red card can't flash the portal black. */
+function applyCount(n){
  if(n>=cnt){miss=0;if(n>cnt)announce();cnt=n}else if(++miss>=MISS){cnt=n;miss=0}
  setGlow(cnt>0)}
+/* The heartbeat replies (sync_ping, spore_state) can carry the red card count themselves, so no separate ping is needed while they do.
+   If a reply has no count (older server, or an error) the normal ping above keeps working as before. */
+function fold(kind,batch,r){
+ try{if(!room||!r||r.ok===false||typeof r.red!=="number"||!isFinite(r.red))return;
+  if(key(room)!==kind+":"+String(batch).slice(0,60))return;
+  lastFold=Date.now();applyCount(Math.max(0,Math.min(99,r.red)))}catch(e){}}
 V.red={room:(kind,batch)=>{batch?seen(kind,batch):clear()},clear};
 
 /* Node Sync and Spore: learn the room from the calls those screens already make. */
 [["sync_ping","sync"],["rec_sync_ping","sync"],["spore_state","spore"]].forEach(([name,kind])=>{
  const f=api[name];if(typeof f!=="function")return;
- api[name]=function(d){try{if(d&&d.batch)seen(kind,d.batch)}catch(e){}return f.apply(this,arguments)}});
+ api[name]=function(d){try{if(d&&d.batch)seen(kind,d.batch)}catch(e){}
+  const p=f.apply(this,arguments);
+  try{if(p&&typeof p.then==="function"&&d&&d.batch)p.then(r=>fold(kind,d.batch,r),()=>{})}catch(e){}
+  return p}});
 ["sync_leave","rec_sync_leave","spore_leave"].forEach(name=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(){try{clear()}catch(e){}return f.apply(this,arguments)}});
