@@ -21,7 +21,7 @@ V.gate={ready,uid:()=>U,isNew,isDecrypted:()=>dec,locked:m=>typeof m.locked==="b
 
 /* ---------- node synchronization: the server checks every node and records the result; this page only shows it ---------- */
 const $=i=>document.getElementById(i),P=V.config.supabase,PROJECT=P.url,KEY=P.anonKey,api=V.services.api;
-const KINDS={decrypt:{NEED:5,ROUND:5000,CYCLE:180000},web:{NEED:100,ROUND:7000,CYCLE:600000},recover:{NEED:15,ROUND:5000,CYCLE:180000}},CFG={NEED:5,ROUND:5000,GRACE:900,TOL:250,CYCLE:180000,PING:2500,ALIVE:7000};let R=CFG.ROUND,KIND="decrypt";
+const KINDS={decrypt:{NEED:5,ROUND:5000,CYCLE:180000},web:{NEED:100,ROUND:7000,CYCLE:600000},recover:{NEED:15,ROUND:5000,CYCLE:180000}},CFG={NEED:5,ROUND:5000,GRACE:900,TOL:250,CYCLE:180000,PING:5000,ALIVE:12000};let R=CFG.ROUND,KIND="decrypt";
 /* every sync call carries the kind: web syncs run in their own batch namespace on the server */
 const call=(f,d)=>KIND==="recover"?api["rec_"+f](d):api[f](KIND==="web"?Object.assign({mode:"web"},d):d);
 const mm=ms=>Math.round(ms/60000)+" minute"+(ms>=120000?"s":"");
