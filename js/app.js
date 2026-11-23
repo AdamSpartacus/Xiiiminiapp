@@ -453,8 +453,10 @@ function go(n){if(n===cur)return;if(n==="conclave"&&!document.body.classList.con
 let MEM=null,justDec=false;
 const MASK="VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022";
 /* new members see the code only after one node sync; everyone else sees it right away */
+const tierOf=m=>{if(m&&(m.tier==="initiate"||m.tier==="founding"))return m.tier;const t=Date.parse(m&&(m.at||m.created_at)||""),f=Date.parse(V.config.initiateFrom||"");return isFinite(t)&&isFinite(f)&&t>=f?"initiate":"founding"};
+V.tierOf=tierOf;
 function paintCode(){const m=MEM;if(!m)return;const lk=V.gate.locked(m);
- V.card&&V.card.set(m.name,lk?"":m.code,lk);
+ V.card&&V.card.set(m.name,lk?"":m.code,lk,tierOf(m));{const ds=$("#ds");if(ds)ds.textContent=tierOf(m)==="initiate"?"Initiate":"Founding Member"}
  $("#dcode").textContent=lk?MASK:m.code;$("#dcode").dataset.lk=lk?"1":"";$(".codebox").classList.toggle("lk",lk);
  $("#cdec").style.display=lk?"":"none";$("#clockn").style.display=lk?"":"none";
  $("#ccopy").style.display=lk?"none":"";$("#chelp").style.display=lk?"none":""}
@@ -549,7 +551,7 @@ function draw(){const q=$("#fq").value.trim().toLowerCase(),BS=new Set(BI.concat
  orph=[...BS].filter(id=>!M.some(m=>m.uid===id)&&String(id).toLowerCase().includes(q));
  $("#fc").textContent=M.length+" members, "+BS.size+" banned";
  const bt=(a,id,banned)=>'<button class="'+(a==="remove"?"del":a)+'" data-act="'+a+'" data-id="'+esc(id)+'">'+LB[a]+'</button>';
- $("#fl").innerHTML=rows.map(m=>{const bn=BS.has(m.uid);return '<div class="mem"><div class="mh"><b>'+esc(m.code)+(bn?'<span class="tag">Banned</span>':'')+'</b><div class="ma">'+bt("remove",m.uid)+(bn?bt("unban",m.uid):bt("ban",m.uid))+'</div></div><dl><dt>Name</dt><dd>'+esc(m.name)+'</dd><dt>Telegram name</dt><dd>'+esc(m.tg_name||'-')+'</dd><dt>User</dt><dd>'+(m.username?'@'+esc(m.username):'-')+'</dd><dt>Old code</dt><dd>'+esc(m.legacy_code||'-')+'</dd><dt>Merits</dt><dd><b class="mv" data-uid="'+esc(m.uid)+'">'+(+m.merits||0)+'</b><span class="mc">'+MB(m.uid)+'</span></dd><dt>Born</dt><dd>'+esc(m.dob)+'</dd><dt>Country</dt><dd>'+esc(m.country)+'</dd><dt>Gender</dt><dd>'+esc(m.gender)+'</dd><dt>Account</dt><dd>'+esc(m.uid)+((m.tg||m.tg_username)?" @"+esc(m.tg||m.tg_username):"")+'</dd><dt>Joined</dt><dd>'+esc(String(m.at||m.created_at||"").slice(0,10))+'</dd></dl></div>'}).join("")||"<p>No members found.</p>";
+ $("#fl").innerHTML=rows.map(m=>{const bn=BS.has(m.uid);return '<div class="mem"><div class="mh"><b>'+esc(m.code)+(bn?'<span class="tag">Banned</span>':'')+'</b><div class="ma">'+bt("remove",m.uid)+(bn?bt("unban",m.uid):bt("ban",m.uid))+'</div></div><dl><dt>Name</dt><dd>'+esc(m.name)+'</dd><dt>Status</dt><dd><b>'+(tierOf(m)==="initiate"?"Initiate":"Founding Member")+'</b> <button type="button" class="lbt" data-tier="'+(tierOf(m)==="initiate"?"founding":"initiate")+'" data-id="'+esc(m.uid)+'">'+(tierOf(m)==="initiate"?"Make founding member":"Make initiate")+'</button></dd><dt>Telegram name</dt><dd>'+esc(m.tg_name||'-')+'</dd><dt>User</dt><dd>'+(m.username?'@'+esc(m.username):'-')+'</dd><dt>Old code</dt><dd>'+esc(m.legacy_code||'-')+'</dd><dt>Merits</dt><dd><b class="mv" data-uid="'+esc(m.uid)+'">'+(+m.merits||0)+'</b><span class="mc">'+MB(m.uid)+'</span></dd><dt>Born</dt><dd>'+esc(m.dob)+'</dd><dt>Country</dt><dd>'+esc(m.country)+'</dd><dt>Gender</dt><dd>'+esc(m.gender)+'</dd><dt>Account</dt><dd>'+esc(m.uid)+((m.tg||m.tg_username)?" @"+esc(m.tg||m.tg_username):"")+'</dd><dt>Joined</dt><dd>'+esc(String(m.at||m.created_at||"").slice(0,10))+'</dd></dl></div>'}).join("")||"<p>No members found.</p>";
  if(orph.length)$("#fl").insertAdjacentHTML("beforeend",'<div class="bh">Banned, no longer a member</div>'+orph.map(id=>'<div class="mem"><div class="mh"><b>'+esc(id)+'<span class="tag">Banned</span></b><div class="ma">'+bt("unban",id)+'</div></div></div>').join(""))}
 $("#fbtn").onclick=async()=>{back=cur;go("founders");await load()};
 /* Live refresh of the members list while the Founders view is open (skipped while a confirm button is armed or a merit tap is in flight) */
@@ -565,6 +567,7 @@ $("#fl").onclick=async e=>{const mb=e.target.closest("[data-merit]");if(mb){cons
   if(r&&r.ok){if(!PN[id]&&typeof r.merits==="number"){m.merits=r.merits;paintMerit(id)}}
   else{m.merits=Math.max(0,(+m.merits||0)-gain);paintMerit(id);mb.textContent="Failed";setTimeout(()=>{mb.textContent=(d<0?"\u2212":"+")+Math.abs(d)},1200)}
   return}
+ const tb=e.target.closest("[data-tier]");if(tb){if(tb.disabled)return;const id=tb.dataset.id,t=tb.dataset.tier,m=M.find(x=>x.uid===id);if(!m)return;tb.disabled=true;let r;try{r=await api.set_tier({id,tier:t})}catch(x){r=null}if(r&&r.ok){m.tier=r.tier==="initiate"?"initiate":"founding";draw()}else{tb.disabled=false;tb.textContent="Failed. Try again"}return}
  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
  if(a!=="unban"&&!b.dataset.arm){b.dataset.arm=1;b.textContent="Tap again to confirm";setTimeout(()=>{b.dataset.arm="";b.textContent=LB[a]},4000);return}
  b.disabled=true;let r;try{r=await api[a](b.dataset.id)}catch(x){r=null}if(r&&r.ok)await load();else{b.disabled=false;b.textContent="Failed. Try again"}};
