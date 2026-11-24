@@ -32,9 +32,10 @@ function badge(n){const b=$("vtBadge");if(!b)return;n=+n||0;b.hidden=!n;b.textCo
 /* ---------------- member page ---------------- */
 function gate(html){const g=$("vtGate");g.hidden=false;g.innerHTML=html;$("vtApp").hidden=true}
 function errGate(m){gate('<div class="mi-gi">'+LOCK+'</div><h3>Voting unavailable</h3><p></p><button class="btn" id="vtRetry" type="button">Try again</button>');$("vtGate").querySelector("p").textContent=m;$("vtRetry").onclick=()=>{gate(SP+"<p>Loading the votes</p>");load(false)}}
+let vSig="",vSame=0,vNext=0;
 async function load(silent){
  if(busy)return;busy=true;let r;try{r=await api.vote_state()}catch(e){r=null}busy=false;
- if(r&&r.ok){S=clean(r);skew=(+r.now||Date.now())-Date.now();badge(r.pending);if(active())paint();return}
+ if(r&&r.ok){{const sg=JSON.stringify(r,(k,v)=>k==="now"?undefined:v);if(sg===vSig)vSame++;else{vSig=sg;vSame=0}vNext=Date.now()+60000*Math.min(4,Math.pow(2,vSame))}S=clean(r);skew=(+r.now||Date.now())-Date.now();badge(r.pending);if(active())paint();return}
  if(r&&r.status==="locked")return;
  if(!S&&active())errGate((r&&r.error)||"Could not load the votes. Check your connection and try again.");
  else if(!silent)toast((r&&r.error)||"Could not refresh the votes.")}
@@ -133,7 +134,7 @@ $("vtSend").onclick=async()=>{
 
 function enter(){
  if(S)paint();else gate(SP+"<p>Loading the votes</p>");
- load(true);clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form)load(true)},60000)}
+ load(true);clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form&&Date.now()>=vNext)load(true)},15000)}
 function leave(){clearInterval(timer);timer=0;closeForm()}
 
 /* sidebar badge: how many open requests are waiting for this member's vote */

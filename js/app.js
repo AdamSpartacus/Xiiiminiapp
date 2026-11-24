@@ -292,6 +292,7 @@ function setLeft(n){if(typeof n!=='number')return;lft=n;const e=$('spLeft');if(e
 function view(p){$('spPick').hidden=p!=='p';$('spGame').hidden=p!=='g';if(p==='g')setTimeout(fit,0);if(p==='p')search()}
 function myRank(){return G?G.me:(ST&&ST.me)||0}
 /* ---------- pick a batch ---------- */
+let spSig='',spSame=0,spNext=0;
 async function search(){
   const q=$('spQ').value.trim().toLowerCase(),box=$('spRes');let r;try{r=await api.spore_search({q})}catch(e){r=null}
   if(!alive||batch)return;
@@ -299,6 +300,7 @@ async function search(){
   if(!r||!r.ok){$('spRs').textContent=(r&&r.error)||'Spore is unavailable right now.';return}
   setLeft(r.left);
   const list=r.batches||[];$('spRs').textContent=list.length?'':'No batches found. Create one.';
+  {const sg=q+'|'+list.map(x=>x.batch+':'+x.n+':'+(x.live?1:0)).join(',');if(sg===spSig)spSame++;else{spSig=sg;spSame=0}spNext=Date.now()+20000*Math.min(4,Math.pow(2,spSame))}
   list.forEach(x=>{const d=document.createElement('div');d.className='nsitem';d.innerHTML='<div><b></b><small></small></div>';
     d.querySelector('b').textContent=x.batch;d.querySelector('small').textContent='by '+(x.o||'a member')+' · '+x.n+'/'+USERS+(x.live?' · in progress':'');
     const b=document.createElement('button');b.type='button';b.className='btn';b.textContent='Join';b.disabled=x.n>=USERS||x.live;b.onclick=()=>join(x.batch,false);d.appendChild(b);box.appendChild(d)});
@@ -375,7 +377,8 @@ $('spCf').addEventListener('submit',async e=>{e.preventDefault();const x=$('spCi
   let r;try{r=await api.spore_chat({batch,text:x})}catch(e){r=null}
   if(!r||!r.ok)sys((r&&r.error)||'Could not send.');else schedule(0)});
 setInterval(()=>{const n=Date.now(),w=Math.floor(n/CW);if(w!==cw){cw=w;$('spChat').textContent='';sys('Chat reset. Previous messages are gone.')}const s=Math.ceil(((cw+1)*CW-n)/1000);$('spCc').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
-setInterval(()=>{if(alive&&!batch&&!document.hidden&&!$('spPS').hidden&&!$('spPick').hidden)search()},20000);
+/* idle lobby list: 20s while it changes, backing off to 80s while it stays the same; any tap/typing searches right away */
+setInterval(()=>{if(alive&&!batch&&!document.hidden&&!$('spPS').hidden&&!$('spPick').hidden&&Date.now()>=spNext)search()},10000);
 /* ---------- game UI ---------- */
 function leftMs(){return G&&!G.over?Math.max(0,DUR*1000-(elAt+performance.now()-tAt)):G&&G.over?0:DUR*1000}
 function shown(i){const n=G&&G.nodes[i]?G.nodes[i]:null,s=scan[i];if(s&&s.u>Date.now())return s.inf?'inf':'ok';return n&&n.i?'inf':'ok'}
