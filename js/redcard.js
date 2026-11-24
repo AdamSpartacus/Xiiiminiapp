@@ -34,9 +34,9 @@ function announce(){
 /* ---------------- which multiplayer room am I in ---------------- */
 let room=null,cnt=0,miss=0,timer=0,busy=false,lastFold=0;
 const key=r=>r.kind+":"+r.batch;
-function seen(kind,batch){
+function seen(kind,batch,quiet){
  const r={kind,batch:String(batch).slice(0,60),t:Date.now()};
- if(!room||key(room)!==key(r)){room=r;cnt=0;miss=0;setGlow(false);ping()}else room.t=r.t;
+ if(!room||key(room)!==key(r)){room=r;cnt=0;miss=0;setGlow(false);if(!quiet)ping()}else room.t=r.t;
  if(!timer)timer=setInterval(tick,POLL)}
 function clear(){room=null;cnt=0;miss=0;setGlow(false);clearInterval(timer);timer=0}
 function tick(){
@@ -58,7 +58,7 @@ function fold(kind,batch,r){
  try{if(!room||!r||r.ok===false||typeof r.red!=="number"||!isFinite(r.red))return;
   if(key(room)!==kind+":"+String(batch).slice(0,60))return;
   lastFold=Date.now();applyCount(Math.max(0,Math.min(99,r.red)))}catch(e){}}
-V.red={room:(kind,batch)=>{batch?seen(kind,batch):clear()},clear};
+V.red={room:(kind,batch,quiet)=>{batch?seen(kind,batch,quiet):clear()},clear,fold};
 
 /* Node Sync: learn the room from the calls those screens already make. */
 [["sync_ping","sync"],["rec_sync_ping","sync"]].forEach(([name,kind])=>{

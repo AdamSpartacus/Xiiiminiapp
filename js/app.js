@@ -98,26 +98,17 @@ let WAIT="Waiting for members. Synchronization starts when "+CFG.NEED+" are onli
 /* the server verifies the sequence, the round timing and that 5 members are online, then records the result */
 function check(){if(sent||!armed||slots.length<5)return;const ans=slots.map(i=>frags[i]).join("");if(ans===CODE){sent=true;setSt("Sequence locked. Hold for verification.","nsok");submit(ans,cur)}}
 async function submit(ans,rd){
-  const b=BATCH;let x;try{x=await call("sync_done",{batch:b,round:rd,answer:ans})}catch(e){x=null}
+  const b=BATCH;const x=await wsReq({t:"done",round:rd,answer:ans},"done:"+rd,8000);
   if(b!==BATCH||decoded)return;
-  if(x&&x.ok&&x.won)return win(x);
   if(x&&x.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}
   if(!x||!x.ok)setSt((x&&x.error)||"Could not reach the server. Try again next round.","nsbad")}
 async function judge(rd){
   if(decoded||!active||!BATCH)return;
-  const b=BATCH;let x;
-  /* The heartbeat reply now carries the win and how many nodes locked in each recent round, so one fresh heartbeat answers what sync_round did.
-     If that heartbeat fails or the server does not send the counts, ask sync_round exactly as before. */
-  rdSeen=undefined;
-  for(let i=0;i<50&&busy;i++)await new Promise(r=>setTimeout(r,100));
+  const b=BATCH;
+  /* the room counts how many nodes locked in each round; the win itself is pushed to every winner */
+  const x=await wsReq({t:"rd",round:rd},"rd:"+rd,2500);
   if(b!==BATCH||decoded)return;
-  await pulseOnce();
-  if(b!==BATCH||decoded)return;
-  if(Array.isArray(rdSeen)){const e=rdSeen.find(z=>z&&+z.r===rd);x={ok:true,done:e?+e.d||0:0}}
-  else{try{x=await call("sync_round",{batch:b,round:rd})}catch(e){x=null}
-    if(b!==BATCH||decoded)return;
-    if(x&&x.ok&&x.won)return win(x)}
-  const n=x&&x.ok?+x.done||0:0;
+  const n=x&&+x.d||0;
   if(active)setSt(`SYNC FAILED \u00b7 ${n}/${CFG.NEED} nodes aligned. New sequence generated.`,"nsbad")}
 function win(x){
   if(decoded)return;
@@ -139,30 +130,9 @@ function tick(){
   if(cur===null){cur=r;waiting(CFG.NEED+" members online. Synchronization begins at the next reset.")}
   else if(r!==cur){const prev=cur,was=armed;cur=r;armed=true;newPuzzle();setSt("Rebuild your code and lock it in.");if(was)setTimeout(()=>judge(prev),CFG.GRACE)}
   $("nsBarI").style.width=((sn%R)/R*100)+"%";$("nsT").textContent=((R-sn%R)/1000).toFixed(1)}
-/* heartbeat: tells the server this node is online, and brings back the online count, this node's codes, new chat lines and the win */
-let cq=[],again=false,hotAt=0,meN=0,lastP=0,rdSeen;
+/* Live connection: one WebSocket per batch (Cloudflare Durable Object). The room pushes the online count, chat lines, codes and the win; this page never polls. */
+let cq=[],again=false,hotAt=0,meN=0,lastP=0,rdSeen,lastMsg=0;
 const nrm=s=>String(s==null?"":s).replace(/\s+/g," ").trim().slice(0,200);
-/* pulse(): one heartbeat at a time. pulse(true) = "run one right after the one in flight" (used after sending a chat line) */
-async function pulse(force){
-  if(busy){if(force)again=true;return}
-  await pulseOnce();
-  if(again&&BATCH){again=false;pulse()}else again=false}
-async function pulseOnce(){
-  const b=BATCH;if(!b||busy)return;busy=true;lastP=Date.now();
-  let r;try{r=await call("sync_ping",{batch:b,after:lastChat})}catch(e){r=null}
-  busy=false;
-  if(!r||b!==BATCH||decoded)return;
-  if(!r.ok){if(r.closed&&KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover");return}if(r.error&&r.error!==lastErr){lastErr=r.error;sys(r.error)}return}
-  if(+r.need>0&&+r.need!==CFG.NEED){const was=CFG.NEED;CFG.NEED=+r.need;paintNeed();rcPaint();if(CFG.NEED<was&&KIND!=="recover")sys("A red card used its power. Nodes needed is now "+CFG.NEED+".")}
-  if(r.codes)Object.assign(CODES,r.codes);
-  (Array.isArray(r.chat)?r.chat:[]).forEach(m=>addChat(m,true));
-  if(typeof r.rt==="string"&&/^ems-[0-9a-f]{24}$/.test(r.rt))rtOpen(r.rt);
-  rdSeen=Array.isArray(r.rd)?r.rd:undefined;
-  if(r.won)return win(r);
-  online=+r.online||0;
-  const was=active;active=online>=CFG.NEED;
-  if(!active&&(was||cur!==null)){cur=null;waiting(WAIT)}
-  $("nsOn").textContent=`nodes online: ${online}/${CFG.NEED}`+(online<CFG.NEED?" \u00b7 awaiting others":"")}
 /* one place that shows a chat line, whether it came from the heartbeat or from Realtime (each id is shown once) */
 let seenChat=new Set();
 function addChat(m,fromPing){
@@ -171,31 +141,75 @@ function addChat(m,fromPing){
   const mine=m.u===ME,tx=String(m.t||"").slice(0,200);
   if(mine){const i=cq.findIndex(p=>p.n===nrm(tx));if(i>=0){cq[i].el.classList.remove("pend");cq.splice(i,1);return}meN++}
   line(String(m.u||"?").slice(0,21),tx,mine)}
-/* ---------- Supabase Realtime: chat lines, joins, leaves and the win are pushed the moment they happen ----------
-   The channel name is secret per batch and is only handed to verified members (in the heartbeat reply). The database broadcasts to it.
-   Realtime only delivers; every rule (who is online, who won) is still decided by the server. The heartbeat keeps running as the fallback. */
-const RT={ws:null,name:"",ref:0,hb:null,retry:0,ok:false,timer:null,poke:0};
-function rtSend(ws,topic,event,payload){try{ws.send(JSON.stringify({topic,event,payload,ref:String(++RT.ref)}))}catch(e){}}
-function rtPoke(){if(RT.poke||!BATCH||decoded)return;RT.poke=setTimeout(()=>{RT.poke=0;if(BATCH&&!decoded&&Date.now()-lastP>1500)pulse(true)},Math.floor(Math.random()*250))}
-function rtConnect(){
-  if(!RT.name||!BATCH||decoded||typeof WebSocket!=="function")return;
-  let ws;try{ws=new WebSocket(PROJECT.replace(/^http/,"ws")+"/realtime/v1/websocket?apikey="+encodeURIComponent(KEY)+"&vsn=1.0.0")}catch(e){return}
-  RT.ws=ws;const topic="realtime:"+RT.name;
-  ws.onopen=()=>{
-    rtSend(ws,topic,"phx_join",{config:{broadcast:{self:false,ack:false},presence:{key:""},postgres_changes:[],private:false},access_token:KEY});
-    clearInterval(RT.hb);RT.hb=setInterval(()=>rtSend(ws,"phoenix","heartbeat",{}),25000)};
-  ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
-    if(!m||m.topic!==topic)return;
-    if(m.event==="phx_reply"){if(m.payload&&m.payload.status==="ok"){RT.ok=true;RT.retry=0;pulse(true)}else{try{ws.close()}catch(e){}}}
-    else if(m.event==="phx_error"){try{ws.close()}catch(e){}}
-    else if(m.event==="broadcast"&&m.payload){const e=m.payload.event,p=m.payload.payload;
-      if((e==="chat"||e==="poke")&&BATCH&&!decoded)rtPoke()}};  /* broadcast content is never trusted or rendered: it only triggers a server fetch */
-  ws.onclose=()=>{clearInterval(RT.hb);if(RT.ws!==ws)return;RT.ws=null;RT.ok=false;
-    if(RT.name&&BATCH&&!decoded){RT.retry++;clearTimeout(RT.timer);RT.timer=setTimeout(rtConnect,Math.min(5000,400*RT.retry))}};
+/* ---------- WebSocket transport (replaces Supabase Realtime and the 5-second HTTP heartbeat) ----------
+   The room (a Durable Object, one per batch) is the only thing this page talks to while a sync runs. It verifies every member when they connect,
+   keeps the roster, the chat and the round counts, checks each answer, and asks the database to record a win. The page only shows what it pushes. */
+const WS={ws:null,gen:0,tries:0,timer:0,hb:0,ok:false,dead:false,pend:{},best:1e9,bestAt:0,shown:false},CA=[];
+const WSURL=String(P.portal||"").replace(/^http/,"ws")+"/ws",TERM=[4001,4003,4005,4400,4401,4403];
+function wsSend(o){const w=WS.ws;if(!w||w.readyState!==1)return false;try{w.send(JSON.stringify(o));return true}catch(e){return false}}
+function wsReq(msg,key,ms){return new Promise(res=>{
+  const f=x=>{clearTimeout(tm);if(WS.pend[key]===f)delete WS.pend[key];res(x)};
+  const tm=setTimeout(()=>f(null),ms);
+  if(WS.pend[key])WS.pend[key](null);WS.pend[key]=f;
+  if(!wsSend(msg))f(null)})}
+function wsDrain(){Object.values(WS.pend).forEach(f=>{try{f(null)}catch(e){}});CA.splice(0).forEach(c=>{const i=cq.indexOf(c.p);if(i>=0)cq.splice(i,1);try{c.el.remove()}catch(e){}})}
+function wsToB64(s){const u=new TextEncoder().encode(s);let b="";for(let i=0;i<u.length;i++)b+=String.fromCharCode(u[i]);return btoa(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function wsOpen(){
+  if(!BATCH||decoded||WS.ws||WS.dead||typeof WebSocket!=="function"||!P.portal)return;
+  const gen=++WS.gen;let ws;
+  try{ws=new WebSocket(WSURL+"?kind="+encodeURIComponent(KIND)+"&batch="+encodeURIComponent(BATCH),["ems.v1","auth."+wsToB64(V.tg.initData||"")])}catch(e){return}
+  WS.ws=ws;WS.ok=false;
+  ws.onopen=()=>{if(WS.gen!==gen)return;clearInterval(WS.hb);WS.hb=setInterval(()=>wsSend({t:"hb",c:Date.now()}),CFG.PING)};
+  ws.onmessage=ev=>{if(WS.gen!==gen)return;let m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(!m||typeof m.t!=="string")return;lastMsg=Date.now();wsMsg(m)};
+  ws.onclose=ev=>{clearInterval(WS.hb);if(WS.gen!==gen)return;WS.ws=null;WS.ok=false;wsDrain();
+    if(!BATCH||decoded)return;
+    if(TERM.includes(ev.code)){timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false;WS.dead=true;return}
+    WS.tries++;clearTimeout(WS.timer);
+    if(WS.tries===3&&!WS.shown){WS.shown=true;sys("Connection lost. Reconnecting\u2026")}
+    WS.timer=setTimeout(()=>{WS.timer=0;wsOpen()},ev.code===4010?0:Math.min(5000,500*WS.tries))};
   ws.onerror=()=>{try{ws.close()}catch(e){}}}
-function rtOpen(name){if(RT.name===name&&RT.ws)return;rtClose();RT.name=name;RT.retry=0;rtConnect()}
-function rtClose(){RT.name="";RT.ok=false;clearTimeout(RT.timer);clearTimeout(RT.poke);RT.poke=0;clearInterval(RT.hb);const ws=RT.ws;RT.ws=null;if(ws){ws.onclose=ws.onmessage=ws.onerror=null;try{ws.close()}catch(e){}}}
-document.addEventListener("visibilitychange",()=>{if(document.hidden||!BATCH||decoded)return;if(RT.name&&!RT.ws)rtConnect();pulse(true)});
+function wsClose(){
+  WS.gen++;clearTimeout(WS.timer);WS.timer=0;clearInterval(WS.hb);WS.ok=false;WS.dead=false;WS.tries=0;WS.shown=false;WS.said=false;
+  const w=WS.ws;WS.ws=null;wsDrain();
+  if(w){w.onopen=w.onmessage=w.onclose=w.onerror=null;try{w.send('{"t":"bye"}')}catch(e){}try{w.close(1000)}catch(e){}}}
+function wsState(m){
+  if(+m.need>0&&+m.need!==CFG.NEED){const was=CFG.NEED;CFG.NEED=+m.need;paintNeed();rcPaint();if(CFG.NEED<was&&KIND!=="recover")sys("A red card used its power. Nodes needed is now "+CFG.NEED+".")}
+  online=+m.online||0;
+  const was=active;active=online>=CFG.NEED;
+  if(!active&&(was||cur!==null)){cur=null;waiting(WAIT)}
+  $("nsOn").textContent=`nodes online: ${online}/${CFG.NEED}`+(online<CFG.NEED?" \u00b7 awaiting others":"");
+  try{if(V.red&&V.red.room){V.red.room("sync",BATCH,true);V.red.fold&&V.red.fold("sync",BATCH,{ok:true,red:+m.red||0})}}catch(e){}}
+function wsMsg(m){
+  switch(m.t){
+    case"hello":
+      if(!WS.said){WS.said=true;sys("Connected. Only verified members in this batch can see this chat.")}
+      WS.ok=true;WS.tries=0;WS.shown=false;off=(+m.now||Date.now())-Date.now();WS.best=1e9;
+      if(m.codes&&typeof m.codes==="object")Object.assign(CODES,m.codes);
+      wsState(m);(Array.isArray(m.chat)?m.chat:[]).forEach(c=>addChat({id:c.id,u:c.u,t:c.x},true));
+      wsSend({t:"hb",c:Date.now()});rcStatus();break;
+    case"st":wsState(m);break;
+    case"p":{const b=Date.now(),rtt=b-(+m.c||0);
+      if(m.c&&rtt>=0&&rtt<3000&&+m.now>0&&(rtt<=WS.best+40||b-WS.bestAt>60000)){off=+m.now-((+m.c)+b)/2;WS.best=rtt;WS.bestAt=b}break}
+    case"codes":if(m.codes&&typeof m.codes==="object")Object.assign(CODES,m.codes);break;
+    case"chat":addChat({id:m.id,u:m.u,t:m.x});break;
+    case"ca":{const c=CA.shift();if(!c)break;
+      if(m.ok)setTimeout(c.fin,3000);
+      else{const i=cq.indexOf(c.p);if(i>=0)cq.splice(i,1);c.el.remove();if(c.b===BATCH)sys(m.error||"Message not sent.")}break}
+    case"win":win({role:m.role,merits:m.merits});break;
+    case"done":{const f=WS.pend["done:"+m.r];if(f)f(m);break}
+    case"rd":{const f=WS.pend["rd:"+m.r];if(f)f(m);break}
+    case"pw":{const f=WS.pend["pw:"+m.op];if(f)f(m);break}
+    case"closed":if(KIND==="recover"){leaveBatch();V.sync.onexit&&V.sync.onexit(false,"recover")}break;
+    case"err":
+      if(m.status==="refresh")break;
+      if(m.status==="locked"){try{V.onlock&&V.onlock(m)}catch(e){}}
+      if(m.error&&m.status!=="locked"){sys(m.error);setSt(m.error,"nsbad")}break}}
+function wsWatch(){
+  if(!BATCH||decoded)return;
+  if(!WS.ws&&!WS.timer&&!WS.dead)wsOpen();
+  if(active&&Date.now()-lastMsg>CFG.ALIVE){active=false;cur=null;waiting(WAIT)}}
+document.addEventListener("visibilitychange",()=>{if(document.hidden||!BATCH||decoded)return;wsWatch()});
 /* ---------- red card power: a red card may spend 20 merits to lower the nodes needed by 5, only in syncs that need more than 10 ---------- */
 const RC_COST=20,RC_CUT=5,RC_MIN=10;let rcOK=false,rcBusy=false;
 function rcPaint(){
@@ -204,8 +218,8 @@ function rcPaint(){
   $("nsRcT").textContent="Red card power. Lower the nodes needed from "+CFG.NEED+" to "+(CFG.NEED-RC_CUT)+" for everyone in this batch. It costs you "+RC_COST+" merits and works once per batch.";
   $("nsRcB").textContent=rcBusy?"Working...":"Use red card power (-"+RC_COST+" merits)";$("nsRcB").disabled=rcBusy}
 async function rcStatus(){
-  const b=BATCH;rcOK=false;rcPaint();if(!b||!api.redcard_power)return;
-  let r;try{r=await api.redcard_power({op:"status",batch:b,mode:KIND})}catch(e){r=null}
+  const b=BATCH;rcOK=false;rcPaint();if(!b||KIND==="decrypt")return;
+  let r;r=await wsReq({t:"pw",op:"status"},"pw:status",5000)
   if(b!==BATCH)return;rcOK=!!(r&&r.ok&&r.eligible&&!r.used);rcPaint()}
 function rcAsk(msg){
   try{const t=V.tg&&V.tg.app;if(t&&t.showConfirm)return new Promise(res=>t.showConfirm(msg,res))}catch(e){}
@@ -214,10 +228,10 @@ $("nsRcB").onclick=async()=>{
   if(rcBusy||!BATCH||!rcOK)return;const b=BATCH;
   if(!(await rcAsk("Spend "+RC_COST+" merits to lower the nodes needed by "+RC_CUT+" for everyone in this batch?")))return;
   if(b!==BATCH)return;rcBusy=true;rcPaint();let r;
-  try{r=await api.redcard_power({op:"use",batch:b,mode:KIND})}catch(e){r=null}
+  r=await wsReq({t:"pw",op:"use"},"pw:use",8000)
   rcBusy=false;if(b!==BATCH)return;
   if(r&&r.ok){rcOK=false;const was=CFG.NEED;CFG.NEED=+r.need>0?+r.need:Math.max(RC_MIN,was-RC_CUT);paintNeed();
-    sys("Red card power used. Nodes needed is now "+CFG.NEED+"."+(r.merits!=null?" Merits left: "+r.merits+".":""));try{V.tg.haptic("heavy")}catch(e){}pulse(true)}
+    sys("Red card power used. Nodes needed is now "+CFG.NEED+"."+(r.merits!=null?" Merits left: "+r.merits+".":""));try{V.tg.haptic("heavy")}catch(e){}}
   else sys((r&&r.error)||"Could not use the red card power. Try again.");
   rcPaint()};
 /* ---------- live chat: relayed by the server, verified members only, wiped every 3 min ---------- */
@@ -227,28 +241,25 @@ function line(u,t,me){
   $("nsMsgs").appendChild(d);$("nsMsgs").scrollTop=1e9;return d}
 function sys(t){const d=document.createElement("div");d.className="nsm sys";d.textContent=t;$("nsMsgs").appendChild(d)}
 function chatEpoch(sn){const e=Math.floor(sn/CFG.CYCLE);if(epoch!==null&&e!==epoch){$("nsMsgs").textContent="";cq=[];sys("Chat reset. Previous messages are gone.")}epoch=e}
-$("nsCf").addEventListener("submit",async e=>{
+$("nsCf").addEventListener("submit",e=>{
   e.preventDefault();const t=$("nsCi").value.trim();if(!t||!BATCH)return;$("nsCi").value="";
   const b=BATCH,el=line(ME,t.slice(0,200),true),p={n:nrm(t),el,mc:meN};el.classList.add("pend");cq.push(p);hotAt=Date.now();
   const fin=()=>{const i=cq.indexOf(p);if(i<0)return;cq.splice(i,1);if(meN>p.mc)el.remove();else el.classList.remove("pend")};
-  let r;try{r=await call("sync_chat",{batch:b,text:t})}catch(x){r=null}
-  if(!r||!r.ok){const i=cq.indexOf(p);if(i>=0)cq.splice(i,1);el.remove();if(b===BATCH)sys((r&&r.error)||"Message not sent.");return}
-  pulse(true);setTimeout(()=>pulse(true),700);setTimeout(fin,6000)});
+  if(!wsSend({t:"chat",text:t})){const i=cq.indexOf(p);if(i>=0)cq.splice(i,1);el.remove();sys("Not connected. Try again in a moment.");return}
+  CA.push({p,el,b,fin})});
 $("nsCi").addEventListener("input",()=>{hotAt=Date.now()});$("nsCi").addEventListener("focus",()=>{hotAt=Date.now()});
 /* ---------- lifecycle ---------- */
 async function join(b){
   BATCH=b.slice(0,60);const mine=BATCH,label=b.replace(/^f-(.*)-[a-z0-9]+$/,"$1 (friends)");
-  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";rtClose();seenChat=new Set();
+  $("nsMeta").textContent="batch "+label+" \u00b7 "+ME;$("nsMsgs").textContent="";epoch=null;decoded=false;cur=null;codeEp=null;active=false;online=0;away=null;CODE="";CODES={};lastChat=0;lastErr="";busy=false;again=false;cq=[];hotAt=0;wonRole="";wsClose();lastMsg=Date.now();seenChat=new Set();
   $("nsOn").textContent="nodes online: 0/"+CFG.NEED+" \u00b7 awaiting others";
   show("nsGame");waiting(WAIT);rcOK=false;rcBusy=false;rcPaint();
-  await syncClock();if(BATCH!==mine)return;
-  tick();timers=[setInterval(tick,100),setInterval(()=>{const gap=!RT.ok&&Date.now()-hotAt<20000?1500:CFG.PING;if(Date.now()-lastP>=gap-100)pulse()},250),setInterval(syncClock,120000)];pulse();rcStatus();sys("Connected. Only verified members in this batch can see this chat.")}
-function stopGame(){rtClose();timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
+  tick();timers=[setInterval(tick,100),setInterval(wsWatch,1000)];wsOpen()}
+function stopGame(){wsClose();timers.forEach(clearInterval);timers=[];active=false;cur=null;armed=false}
 /* offline: stop heartbeats, tell the server (it removes an empty random batch itself) */
 function goOffline(){
   const b=BATCH;if(!b)return;
-  stopGame();rcOK=false;rcPaint();
-  try{call("sync_leave",{batch:b})}catch(e){}}
+  stopGame();rcOK=false;rcPaint();try{V.red&&V.red.clear&&V.red.clear()}catch(e){}}
 function leaveBatch(){goOffline();BATCH="";away=null}
 $("nsLeave").onclick=()=>{leaveBatch();show("nsPick");search($("nsQ").value.trim())};
 $("nsBack").onclick=()=>{leaveBatch();V.sync.onexit&&V.sync.onexit(false,KIND)};
