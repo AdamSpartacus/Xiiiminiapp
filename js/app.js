@@ -442,8 +442,8 @@ function showLock(r){if(!r)return;const first=!PL;PL={until:r.until||null,off:(+
 async function plCheck(){if(plBusy||document.body.classList.contains("owner"))return;plBusy=true;plLast=Date.now();let r;try{r=await api.lock_status()}catch(e){r=null}plBusy=false;
  if(!r||!r.ok)return;if(r.locked)showLock(r);else if(PL)location.reload()}
 V.onlock=showLock;
-setInterval(()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=120000))plCheck()},10000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=120000))plCheck()});
+setInterval(()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=300000))plCheck()},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&(PL||entered)&&(PL||Date.now()-plLast>=300000))plCheck()});
 
 const meP=api.me().catch(()=>({status:"none"}));
 /* Keep the Telegram name current: on every open (and whenever the app comes back to the foreground) compare it with the saved one and update it if it changed. Silent; ignored if it fails. */
@@ -519,7 +519,7 @@ $("#dcode").addEventListener("click",()=>{if(!$("#dcode").dataset.lk)$("#ccopy")
 $("#cdec").addEventListener("click",()=>startSync("decrypt"));
 $("#chelp").addEventListener("click",()=>startSync("help"));
 V.sync.onwin=async(mode,x,kind)=>{if(kind==="recover"){try{V.recover&&V.recover.refresh()}catch(e){}return}if(kind==="web"){if(mode==="decrypt")paintWeb(true);return}if(!MEM||!V.gate.locked(MEM))return;
- if(typeof MEM.locked==="boolean"){let r;try{r=await api.me()}catch(e){r=null}if(r&&r.member&&r.member.locked===false){justDec=true;show(r.member)}}
+ if(typeof MEM.locked==="boolean"){let r;try{r=await (api.me.fresh||api.me)()}catch(e){r=null}if(r&&r.member&&r.member.locked===false){justDec=true;show(r.member)}}
  else{V.gate.markDecrypted();justDec=true;paintCode()}};
 V.sync.onexit=(reveal,kind)=>{if(kind==="recover"){go("archive");return}if(kind==="web"){go("web");return}go("done");if(reveal&&justDec&&MEM){justDec=false;setTimeout(scramble,450)}};
 

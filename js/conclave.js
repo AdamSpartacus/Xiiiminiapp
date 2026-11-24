@@ -30,12 +30,13 @@ async function verify(){
  else deny((r&&r.error)||"Only registered members can play.",1);
  return false}
 /* Re-checks with the server before every join (cached 45s). Fails closed. */
-function recheck(force){if(_ok&&!force&&Date.now()-_at<45000)return Promise.resolve(true);return _busy||(_busy=verify().finally(()=>{_busy=null}))}
+const RECHECK_TTL=300000; /* membership is cached 5 min; the server is asked again only on open, on a real action after the cache expires, or when the user taps Try again */
+function recheck(force){if(_ok&&!force&&Date.now()-_at<RECHECK_TTL)return Promise.resolve(true);return _busy||(_busy=verify().finally(()=>{_busy=null}))}
 Object.defineProperty(window,"CLRECHECK",{value:recheck,writable:false,configurable:false});
 /* Realtime token: issued by conclave-token only to verified members (1h). Channels are private, so Supabase itself rejects everyone else. */
 let _tk=null,_te=0,_tp=null;
 function token(force){if(!force&&_tk&&_te-Date.now()>300000)return Promise.resolve(_tk);if(_tp)return _tp;
- _tp=(async()=>{try{const a=app();if(!a||!(await recheck()))return null;
+ _tp=(async()=>{try{const a=app();if(!a||!(await recheck(true)))return null;
   const res=await fetch(SB.url+"/functions/v1/conclave-token",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({initData:a.initData})});const r=await res.json();
   if(r&&r.ok&&r.token){_tk=r.token;_te=r.exp*1000;return _tk}_tk=null;return null}catch(e){return null}finally{_tp=null}})();return _tp}
 Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:false});
@@ -43,7 +44,11 @@ Object.defineProperty(window,"CLTOKEN",{value:token,writable:false,configurable:
 Object.defineProperty(window,"CLCALL",{value:async function(action,data){const a=app();if(!a)return null;try{if(window.parent!==window){if(action==="cb_leave")parent.postMessage({clv:"red",op:"leave"},"*");else if(/^cb_/.test(action)&&action!=="cb_list"&&data&&data.batch)parent.postMessage({clv:"red",op:"room",batch:String(data.batch).slice(0,64)},"*")}}catch(e){}try{const res=await fetch(SB.url+"/functions/v1/"+(/^cg_/.test(action)?"conclave-game":"conclave-batch"),{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:action,initData:a.initData,data:data||{}})});return await res.json()}catch(e){return null}},writable:false,configurable:false});
 
 /* A revoked or banned member is removed from live rooms within a minute. */
-setInterval(()=>{if(_ok&&!document.hidden)recheck(true)},60000);
+/* Security: idle screens are not polled, but while the member is inside a live room (batch, chat or game) the server is still asked every 60s,
+   so a revoked/banned member is removed within a minute exactly as before. Joins and token issue always verify fresh (see bload/bdir/token). */
+const inRoom=()=>{try{return !!((typeof BT!=="undefined"&&BT&&(BT.ch||BT.sn))||(typeof CHAT!=="undefined"&&CHAT&&CHAT.ch)||(typeof GM!=="undefined"&&GM&&GM.pt))}catch(e){return false}};
+setInterval(()=>{if(_ok&&!document.hidden&&inRoom())recheck(true)},60000);
+document.addEventListener("visibilitychange",()=>{if(_ok&&!document.hidden)recheck()});
 recheck(true)})();
 ;
 /* ---- 2. 3D intro ---- */
@@ -364,12 +369,12 @@ const bhash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imu
 const bclean=s=>s.replace(/[^\w \-]/g,"").replace(/\s+/g," ").trim().slice(0,24);
 function bme(){const u=(EMB&&EMB.u)||(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user);let n=u&&(u.username||u.first_name);if(!n){try{n=localStorage.getItem("cl_name")}catch(e){}if(!n){n="Guest"+Math.floor(1000+Math.random()*9000);try{localStorage.setItem("cl_name",n)}catch(e){}}}return String(n).replace(/[^\w]/g,"").slice(0,16)||"Guest"}
 let BME=bme();if(window.CLOK&&window.CLNAME)BME=window.CLNAME;addEventListener("clok",()=>{if(window.CLNAME)BME=window.CLNAME});
-function bload(){return window.CLRECHECK().then(ok=>{if(!ok)throw new Error("members only");return bload0()})}
+function bload(){return window.CLRECHECK(true).then(ok=>{if(!ok)throw new Error("members only");return bload0()})}
 function bload0(){if(window.supabase&&BT.cl)return Promise.resolve();return new Promise((ok,bad)=>{const go=()=>{try{BT.cl=BT.cl||supabase.createClient(SB.url,SB.key,{realtime:{params:{eventsPerSecond:8}}});window.CLTOKEN().then(tk=>{if(!tk)return bad(new Error("no token"));BT.cl.realtime.setAuth(tk);if(!BT.rf)BT.rf=setInterval(()=>window.CLTOKEN(true).then(n=>{if(n&&BT.cl)BT.cl.realtime.setAuth(n)}),2400000);ok()}).catch(bad)}catch(e){bad(e)}};if(window.supabase)return go();const e=document.createElement("script");e.src=SB.lib;e.onload=go;e.onerror=()=>bad(new Error("load"));document.head.appendChild(e)})}
 function bsub(ch){return new Promise((ok,bad)=>{const t=setTimeout(()=>bad(new Error("timeout")),8000);ch.subscribe(st=>{if(st==="SUBSCRIBED"){clearTimeout(t);ok()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"){clearTimeout(t);bad(new Error(st))}})})}
 function bdirList(q){q=(q||"").toLowerCase();return(BT.list||[]).map(x=>({b:x.batch,o:x.o||"a member",n:x.n||0,live:!!x.live,full:!!x.full})).filter(x=>!q||x.b.toLowerCase().includes(q))}
 async function bpoll(){const r=await window.CLCALL("cb_list",{q:""});if(r&&r.ok&&Array.isArray(r.batches)){BT.list=r.batches;BT.lok=true;if($("#bRes"))bRender()}}
-async function bdir(){if(BT.dir)return;if(!(await window.CLRECHECK()))throw new Error("members only");await bpoll();if(!BT.lok)throw new Error("list");if(!BT.dir)BT.dir=setInterval(()=>{if(!document.hidden)bpoll()},10000)}
+async function bdir(){if(BT.dir)return;if(!(await window.CLRECHECK(true)))throw new Error("members only");await bpoll();if(!BT.lok)throw new Error("list");if(!BT.dir)BT.dir=setInterval(()=>{if(!document.hidden)bpoll()},10000)}
 function bAdvert(){}
 function bShell(h){GEN++;_rest="";G=null;$("main").innerHTML=h}
 function batchUI(tab){BT.tab=tab||BT.tab||"S";
