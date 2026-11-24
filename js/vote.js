@@ -34,7 +34,7 @@ function badge(n){const b=$("vtBadge");if(!b)return;n=+n||0;b.hidden=!n;b.textCo
    A tiny WebSocket (Cloudflare Durable Object "VoteHub") only says "something changed". It carries no vote data: on that hint the page asks the
    server for its own state exactly as before, so every check (signature, membership, ban, lock) still runs on the server. If the socket is
    unavailable the page simply keeps its slow polling, so nothing depends on it. */
-const LV={ws:null,ok:false,tries:0,t:0,gen:0,sentAt:0};
+const LV={ws:null,ok:false,tries:0,t:0,gen:0,sentAt:0,hint:0};
 const b64u=s=>{const u=new TextEncoder().encode(s);let b="";for(let i=0;i<u.length;i++)b+=String.fromCharCode(u[i]);return btoa(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
 function liveOpen(){
  const P=V.config&&V.config.supabase;if(LV.ws||!P||!P.portal||typeof WebSocket!=="function"||!V.tg.initData)return;
@@ -43,7 +43,7 @@ function liveOpen(){
  LV.ws=ws;
  ws.onopen=()=>{if(LV.gen!==gen)return;LV.ok=true;LV.tries=0;clearInterval(LV.hb);LV.hb=setInterval(()=>{try{ws.send("ping")}catch(e){}},45000)};
  ws.onmessage=ev=>{if(LV.gen!==gen)return;let m;try{m=JSON.parse(ev.data)}catch(e){return}
-  if(m&&m.t==="changed"&&active()&&!document.hidden&&!form)load(true)};
+  if(m&&m.t==="changed"&&active()&&!document.hidden&&!form&&Date.now()-LV.hint>=8000){LV.hint=Date.now();load(true)}};
  const down=ev=>{if(LV.gen!==gen)return;clearInterval(LV.hb);LV.ws=null;LV.ok=false;
   if(ev&&[4001,4003,4400,4401,4403].includes(ev.code))return;/* refused: stay on polling */
   if(LV.tries>=6)return;clearTimeout(LV.t);LV.t=setTimeout(()=>{if(active())liveOpen()},Math.min(60000,2000*Math.pow(2,LV.tries++)))};
