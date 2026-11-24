@@ -29,6 +29,29 @@ const now=()=>Date.now()+skew;
 function left(ms){if(ms<=0)return"Closing now";const m=Math.floor(ms/6e4),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mi=m%60;return(d?d+"d "+h+"h":h?h+"h "+mi+"m":Math.max(1,mi)+"m")+" left"}
 function badge(n){const b=$("vtBadge");if(!b)return;n=+n||0;b.hidden=!n;b.textContent=n>9?"9+":String(n)}
 
+
+/* ---------------- live updates ----------------
+   A tiny WebSocket (Cloudflare Durable Object "VoteHub") only says "something changed". It carries no vote data: on that hint the page asks the
+   server for its own state exactly as before, so every check (signature, membership, ban, lock) still runs on the server. If the socket is
+   unavailable the page simply keeps its slow polling, so nothing depends on it. */
+const LV={ws:null,ok:false,tries:0,t:0,gen:0,sentAt:0};
+const b64u=s=>{const u=new TextEncoder().encode(s);let b="";for(let i=0;i<u.length;i++)b+=String.fromCharCode(u[i]);return btoa(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+function liveOpen(){
+ const P=V.config&&V.config.supabase;if(LV.ws||!P||!P.portal||typeof WebSocket!=="function"||!V.tg.initData)return;
+ const gen=++LV.gen;let ws;
+ try{ws=new WebSocket(String(P.portal).replace(/^http/,"ws")+"/vote-ws",["vote.v1","auth."+b64u(V.tg.initData)])}catch(e){return}
+ LV.ws=ws;
+ ws.onopen=()=>{if(LV.gen!==gen)return;LV.ok=true;LV.tries=0;clearInterval(LV.hb);LV.hb=setInterval(()=>{try{ws.send("ping")}catch(e){}},45000)};
+ ws.onmessage=ev=>{if(LV.gen!==gen)return;let m;try{m=JSON.parse(ev.data)}catch(e){return}
+  if(m&&m.t==="changed"&&active()&&!document.hidden&&!form)load(true)};
+ const down=ev=>{if(LV.gen!==gen)return;clearInterval(LV.hb);LV.ws=null;LV.ok=false;
+  if(ev&&[4001,4003,4400,4401,4403].includes(ev.code))return;/* refused: stay on polling */
+  if(LV.tries>=6)return;clearTimeout(LV.t);LV.t=setTimeout(()=>{if(active())liveOpen()},Math.min(60000,2000*Math.pow(2,LV.tries++)))};
+ ws.onclose=down;ws.onerror=()=>{try{ws.close()}catch(e){}}}
+function liveClose(){LV.gen++;clearTimeout(LV.t);clearInterval(LV.hb);const w=LV.ws;LV.ws=null;LV.ok=false;LV.tries=0;if(w){try{w.close(1000,"bye")}catch(e){}}}
+/* after this member's own successful write, tell the hub so everyone else refreshes (a forged hint only causes one extra refresh; the hub rate-limits it) */
+function liveTell(){if(!LV.ok||!LV.ws||LV.ws.readyState!==1||Date.now()-LV.sentAt<1500)return;LV.sentAt=Date.now();try{LV.ws.send('{"t":"changed"}')}catch(e){}}
+
 /* ---------------- member page ---------------- */
 function gate(html){const g=$("vtGate");g.hidden=false;g.innerHTML=html;$("vtApp").hidden=true}
 function errGate(m){gate('<div class="mi-gi">'+LOCK+'</div><h3>Voting unavailable</h3><p></p><button class="btn" id="vtRetry" type="button">Try again</button>');$("vtGate").querySelector("p").textContent=m;$("vtRetry").onclick=()=>{gate(SP+"<p>Loading the votes</p>");load(false)}}
@@ -101,12 +124,12 @@ $("vtList").addEventListener("click",async e=>{
  if(a==="cast"){const c=b.dataset.c;if(b.disabled||p.my===c)return;
   b.closest(".vt-act").querySelectorAll("button").forEach(x=>x.disabled=true);b.textContent="\u2026";
   let r;try{r=await api.vote_cast({id,choice:c})}catch(x){r=null}
-  if(r&&r.ok){hap("medium");toast("Vote recorded. You can change it until voting closes.")}else toast((r&&r.error)||"Could not record your vote. Try again.");
+  if(r&&r.ok){hap("medium");liveTell();toast("Vote recorded. You can change it until voting closes.")}else toast((r&&r.error)||"Could not record your vote. Try again.");
   await load(true);if(active())paint();return}
  if(a==="withdraw"){
   if(!b.dataset.arm){b.dataset.arm="1";b.textContent="Tap again to confirm";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Withdraw"}},4000);return}
   b.disabled=true;let r;try{r=S.owner&&!p.mine?await api.vote_founder_withdraw({id}):await api.vote_withdraw({id})}catch(x){r=null}
-  if(r&&r.ok){hap("medium");toast("Request withdrawn.")}else toast((r&&r.error)||"Could not withdraw. Try again.");
+  if(r&&r.ok){hap("medium");liveTell();toast("Request withdrawn.")}else toast((r&&r.error)||"Could not withdraw. Try again.");
   await load(true);if(active())paint()}});
 
 /* new request / competing request / revision */
@@ -129,13 +152,13 @@ $("vtSend").onclick=async()=>{
  const h=+$("vtHrs").value,btn=$("vtSend");btn.disabled=true;note.textContent="";let r;
  try{r=form.mode==="new"?await api.vote_propose({title:t,body:b,hours:h}):form.mode==="counter"?await api.vote_counter({id:form.id,title:t,body:b}):await api.vote_revise({id:form.id,title:t,body:b,hours:h})}catch(e){r=null}
  btn.disabled=false;
- if(r&&r.ok){hap("medium");const m=form.mode;closeForm();toast(m==="counter"?"Competing request raised. Voting restarted.":m==="revise"?"Request resubmitted for voting.":"Request raised. Every member can now vote.");await load(true);if(active())paint()}
+ if(r&&r.ok){hap("medium");liveTell();const m=form.mode;closeForm();toast(m==="counter"?"Competing request raised. Voting restarted.":m==="revise"?"Request resubmitted for voting.":"Request raised. Every member can now vote.");await load(true);if(active())paint()}
  else note.textContent=(r&&r.error)||"Could not submit. Try again."};
 
 function enter(){
  if(S)paint();else gate(SP+"<p>Loading the votes</p>");
- load(true);clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form&&Date.now()>=vNext)load(true)},15000)}
-function leave(){clearInterval(timer);timer=0;closeForm()}
+ load(true);liveOpen();clearInterval(timer);timer=setInterval(()=>{if(active()&&!document.hidden&&!form&&Date.now()>=vNext)load(true)},15000)}
+function leave(){clearInterval(timer);timer=0;liveClose();closeForm()}
 
 /* sidebar badge: how many open requests are waiting for this member's vote */
 let bl=0;
@@ -174,7 +197,7 @@ $("vsSave").onclick=async()=>{
  if(fl<1||fl>50){n.textContent="Opposition that fails a request must be 1 to 50.";return}
  if(ps+fl<100){n.textContent="Pass and fail limits must add up to at least 100.";return}
  const b=$("vsSave");b.disabled=true;n.textContent="";let r;try{r=await api.vote_founder_set({proposers:[...FSel],min_part:mn,pass_pct:ps,fail_pct:fl})}catch(e){r=null}b.disabled=false;
- if(r&&r.ok){FSel=new Set(r.proposers||[]);$("vsMin").value=r.settings.min_part;$("vsPass").value=r.settings.pass_pct;$("vsFail").value=r.settings.fail_pct;fDraw();fRules();n.textContent="Saved. "+pl(FSel.size,"member")+" can now raise official requests. Open requests keep the rules they started with.";hap("medium");if(S)load(true)}
+ if(r&&r.ok){liveTell();FSel=new Set(r.proposers||[]);$("vsMin").value=r.settings.min_part;$("vsPass").value=r.settings.pass_pct;$("vsFail").value=r.settings.fail_pct;fDraw();fRules();n.textContent="Saved. "+pl(FSel.size,"member")+" can now raise official requests. Open requests keep the rules they started with.";hap("medium");if(S)load(true)}
  else n.textContent=(r&&r.error)||"Could not save. Try again."};
 const mv=$("mvote");if(mv)mv.onclick=()=>{if(body.classList.contains("owner")){const g=$("voteGoSet");if(g)g.click()}};
 
