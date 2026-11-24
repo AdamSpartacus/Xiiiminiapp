@@ -20,7 +20,7 @@ function deny(msg,retry){const was=_ok;_ok=false;_nm="";_at=0;t.textContent="Mem
  const mm=document.querySelector("main");if(mm)mm.innerHTML=""}
 async function verify(){
  const a=app();if(!a){deny("Open the Conclave from the Illuminati app in Telegram.");return false}
- let r;try{const res=await fetch(SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData}),signal:(typeof AbortSignal!=="undefined"&&AbortSignal.timeout)?AbortSignal.timeout(15000):undefined});r=await res.json()}
+ let r;try{const res=await fetch((((window.ILLUMINATI||{}).config||{}).supabase||{}).portal||SB.url+"/functions/v1/"+SB.fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB.key},body:JSON.stringify({action:"me",initData:a.initData}),signal:(typeof AbortSignal!=="undefined"&&AbortSignal.timeout)?AbortSignal.timeout(15000):undefined});r=await res.json()}
  catch(e){if(!_ok)deny("Could not verify your membership. Check your connection.",1);return false}
  if(r&&r.status==="member"&&r.member){const first=!_ok;_ok=true;_at=Date.now();_nm=String(r.member.username||"").replace(/[^\w]/g,"").slice(0,16);if(g.isConnected)g.remove();if(first)window.dispatchEvent(new Event("clok"));return true}
  if(r&&r.status==="banned")deny("Your membership has been revoked.");
