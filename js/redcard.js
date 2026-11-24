@@ -1,7 +1,7 @@
 try{
 /* Red Cards.
    The founder chooses up to 5 members as red cards (founder-only "Red cards" tab in the sidebar Founder section).
-   While you are inside any multiplayer place (Node Sync, Spore or a Conclave batch) this file pings the backend
+   While you are inside any multiplayer place (a Node Sync room) this file pings the backend
    (edge function illuminati-redcard) with the room you are in. When a red card member is in that same room the
    whole portal turns dark red and a "Red Card Joined" notice appears. Outside multiplayer nothing happens.
    Who is a red card, and who is in a room, is decided by the backend only; this file just shows it. */
@@ -14,13 +14,9 @@ const body=document.body;
 
 /* ---------------- red palette + notice ---------------- */
 /* While a red card is in your room, <html> gets the class rc-red (the dark red palette lives in the #rcRedPalette style in index.html).
-   The Conclave game runs inside its own frame, so the same colour variables are injected there. Removing everything restores the normal palette. */
+   Removing everything restores the normal palette. */
 let note=null,noteT=0;
 const HEAD_ON="#0c0205",HEAD_OFF="#000000";
-const FRAME_CSS=':root{--text:#f4e6e8;--fg:#f4e6e8;--mute:#d8b4b9;--mut:#d8b4b9;--dim:#ee4455;--line:rgba(255,52,72,.34);--accent:#ff4d5e;--gold:#ff4d5e;--gold2:rgba(255,70,90,.5);--panel:rgba(255,30,50,.05);--tile:rgba(255,30,50,.11);--tile2:rgba(255,30,50,.03);--glass:linear-gradient(145deg,rgba(255,30,50,.14),rgba(110,0,14,.05));--bgfx:radial-gradient(640px 460px at 82% -4%,rgba(150,0,20,.5),transparent 70%),radial-gradient(800px 480px at 50% -12%,#2a0309,#000 62%)}';
-function frame(on){
- try{const f=document.getElementById("clvFrame");if(f&&f.contentWindow)f.contentWindow.postMessage({clv:"theme",css:on?FRAME_CSS:""},"*")}catch(e){}}
-window.addEventListener("message",ev=>{const f=document.getElementById("clvFrame");if(!f||ev.source!==f.contentWindow)return;const m=ev.data;if(m&&m.clv==="red"&&m.op==="ready")frame(!!lit)});
 function mount(){
  if(note)return;
  note=document.createElement("div");note.id="rcNote";note.setAttribute("role","status");note.setAttribute("aria-live","assertive");
@@ -30,7 +26,7 @@ let lit=null;
 function setGlow(on){mount();on=!!on;
  if(lit!==on){lit=on;document.documentElement.classList.toggle("rc-red",on);
   try{const a=V.tg.app;if(a){a.setHeaderColor&&a.setHeaderColor(on?HEAD_ON:HEAD_OFF);a.setBackgroundColor&&a.setBackgroundColor(on?HEAD_ON:HEAD_OFF);a.setBottomBarColor&&a.setBottomBarColor(on?HEAD_ON:HEAD_OFF)}}catch(e){}}
- frame(on)}
+ }
 function announce(){
  mount();note.textContent="Red Card Joined";note.classList.remove("on");void note.offsetWidth;note.classList.add("on");
  clearTimeout(noteT);noteT=setTimeout(()=>note.classList.remove("on"),3200);hap("heavy")}
@@ -56,7 +52,7 @@ async function ping(){
 function applyCount(n){
  if(n>=cnt){miss=0;if(n>cnt)announce();cnt=n}else if(++miss>=MISS){cnt=n;miss=0}
  setGlow(cnt>0)}
-/* The heartbeat replies (sync_ping, spore_state) can carry the red card count themselves, so no separate ping is needed while they do.
+/* The heartbeat replies (sync_ping) can carry the red card count themselves, so no separate ping is needed while they do.
    If a reply has no count (older server, or an error) the normal ping above keeps working as before. */
 function fold(kind,batch,r){
  try{if(!room||!r||r.ok===false||typeof r.red!=="number"||!isFinite(r.red))return;
@@ -64,14 +60,14 @@ function fold(kind,batch,r){
   lastFold=Date.now();applyCount(Math.max(0,Math.min(99,r.red)))}catch(e){}}
 V.red={room:(kind,batch)=>{batch?seen(kind,batch):clear()},clear};
 
-/* Node Sync and Spore: learn the room from the calls those screens already make. */
-[["sync_ping","sync"],["rec_sync_ping","sync"],["spore_state","spore"]].forEach(([name,kind])=>{
+/* Node Sync: learn the room from the calls those screens already make. */
+[["sync_ping","sync"],["rec_sync_ping","sync"]].forEach(([name,kind])=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(d){try{if(d&&d.batch)seen(kind,d.batch)}catch(e){}
   const p=f.apply(this,arguments);
   try{if(p&&typeof p.then==="function"&&d&&d.batch)p.then(r=>fold(kind,d.batch,r),()=>{})}catch(e){}
   return p}});
-["sync_leave","rec_sync_leave","spore_leave"].forEach(name=>{
+["sync_leave","rec_sync_leave"].forEach(name=>{
  const f=api[name];if(typeof f!=="function")return;
  api[name]=function(){try{clear()}catch(e){}return f.apply(this,arguments)}});
 /* ---------------- founder page: choose the red cards (own tab, founder only) ---------------- */
