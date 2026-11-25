@@ -375,11 +375,12 @@ V.sync.onexit=(reveal,kind)=>{if(kind==="recover"){go("archive");return}if(kind=
 
 /* Merits + Hall of Merit (the server decides what each row shows; member codes are never listed) */
 const fmt=n=>(+n||0).toLocaleString("en-US");
+(function(){try{const st=document.createElement("style");st.id="tierStyle";st.textContent=".hnm{min-width:0;overflow:hidden;text-overflow:ellipsis}.hstar{flex:none;width:11px;height:11px;margin-left:-3px;color:#e6c46a;filter:drop-shadow(0 0 3px rgba(230,196,106,.45))}.hini{flex:none;margin-left:-2px;font:600 9px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--mute,#8b93a1)}";document.head.appendChild(st)}catch(e){}})();
 async function loadMerits(){const hl=$("#hall");hl.innerHTML='<p class="note">Loading\u2026</p>';let r;try{r=await api.merits()}catch(e){r=null}
  const ok=!!(r&&r.ok),me=ok&&r.me?r.me:null,rows=ok&&Array.isArray(r.members)?r.members:[];
  $("#mv").textContent=fmt(me&&me.merits);$("#mr").textContent=me&&me.rank?"#"+me.rank:"\u2014";$("#ms").textContent=me&&me.status?me.status:"Active";
  $("#hc").textContent=rows.length?rows.length+(rows.length===1?" member":" members"):"";
- if(ok&&typeof r.wallet==="boolean")paintWallet(r.wallet);hl.innerHTML=rows.length?rows.map(m=>'<div class="hr'+(m.you?' me':'')+'"><span class="hk'+(m.rank<=3?' top':'')+'">'+String(m.rank).padStart(2,"0")+'</span><span class="hn"><b>'+esc(m.label||"Anonymous member")+(m.you?'<em>You</em>':'')+'</b><span class="st '+(String(m.status||"Active").toLowerCase()==="active"?"ok":"no")+'">'+esc(m.status||"Active")+'</span></span><span class="hm">'+fmt(m.merits)+'</span></div>').join(""):'<p class="note">No standings yet.</p>'}
+ if(ok&&typeof r.wallet==="boolean")paintWallet(r.wallet);hl.innerHTML=rows.length?rows.map(m=>'<div class="hr'+(m.you?' me':'')+'"><span class="hk'+(m.rank<=3?' top':'')+'">'+String(m.rank).padStart(2,"0")+'</span><span class="hn"><b><span class="hnm">'+esc(m.label||"Anonymous member")+'</span>'+(m.tier==="founding"?'<svg class="hstar" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Founding member"><path d="M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6 6.1 20.8l1.2-6.6L2.4 9.6l6.7-.9z"/></svg>':m.tier==="initiate"?'<span class="hini">\u2022 INITIATE</span>':'')+(m.you?'<em>You</em>':'')+'</b><span class="st '+(String(m.status||"Active").toLowerCase()==="active"?"ok":"no")+'">'+esc(m.status||"Active")+'</span></span><span class="hm">'+fmt(m.merits)+'</span></div>').join(""):'<p class="note">No standings yet.</p>'}
 
 /* Genesis Lock: live metrics from the backend (progress = members/150,000, accuracy = merits/1,000,000) */
 let glT=0,glBusy=false,glAt=0;const GL_TTL=6*3600*1000;
