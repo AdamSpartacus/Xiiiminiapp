@@ -4,6 +4,8 @@ const PYR=window.ILLUMINATI_MODEL.PYR;
 const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.c4b18824.png"};
 const $=id=>document.getElementById(id);
 let NAME="",CODE="",LOCK=false,inited=false,active=false,tok=0,R=null,draw=()=>{},loop=null;
+/* card art + state live here (outer scope) so V.card.set() can reach them; they used to be declared inside init(), which made set() throw a ReferenceError */
+const iF=new Image(),iB=new Image(),iFi=new Image(),iFr=new Image(),iBr=new Image();let ready=0,TIER="founding",fiOK=0,RED=false,rOK=0,rErr=0;
 function init(){
 inited=true;
 const cv=$('cardGl');
@@ -110,7 +112,6 @@ function text(g,str,cx,base,size,sp,top,bot,maxW){str=String(str||'');if(!str)re
  let tw=w();if(tw>maxW*K){const r=maxW*K/tw;fs*=r;s2*=r;g.font='400 '+fs+'px '+SERIF;tw=w()}
  const gr=g.createLinearGradient(0,base*K-size*.7*K,0,base*K);gr.addColorStop(0,top);gr.addColorStop(1,bot);g.fillStyle=gr;g.textBaseline='alphabetic';
  let x=cx*K-tw/2;for(const ch of str){g.fillText(ch,x,base*K);x+=g.measureText(ch).width+s2}}
-const iF=new Image(),iB=new Image(),iFi=new Image(),iFr=new Image(),iBr=new Image();let ready=0,TIER="founding",fiOK=0,RED=false,rOK=0,rErr=0;
 draw=function(){if(ready<2||(TIER==="initiate"&&!fiOK)||(RED&&rOK<2&&!rErr))return;
  const RD=RED&&rOK===2&&!rErr;/* red card: own art; if the red art fails to load the card quietly stays black */
  gF.clearRect(0,0,CW,CH);gF.drawImage(RD?iFr:TIER==="initiate"?iFi:iF,0,0,CW,CH);
