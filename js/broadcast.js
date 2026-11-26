@@ -14,8 +14,8 @@ const call=a=>async d=>{
  if(!S||!S.url)return{ok:false,error:"Node Broadcast needs the live backend."};
  const ac=typeof AbortController==="function"?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),20000):0;
  try{
-  const r=await fetch(V.endpoint?V.endpoint(FN):S.url+"/functions/v1/"+FN+"?forceFunctionRegion=ap-south-1",{method:"POST",...(ac?{signal:ac.signal}:{}),
-   headers:{"Content-Type":"application/json",apikey:S.anonKey,...(String(S.anonKey).startsWith("eyJ")?{Authorization:"Bearer "+S.anonKey}:{})},
+  const u=V.endpoint?V.endpoint(FN):S.url+"/functions/v1/"+FN+"?forceFunctionRegion=ap-south-1",r=await fetch(u,{method:"POST",...(ac?{signal:ac.signal}:{}),
+   headers:V.hdr?V.hdr(u):{"Content-Type":"application/json",apikey:S.anonKey},
    body:JSON.stringify({action:a,initData:V.tg.initData,data:d})});
   const j=await r.json();
   try{if(j&&j.status==="locked"&&V.onlock)V.onlock(j)}catch(e){}

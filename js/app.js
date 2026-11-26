@@ -535,8 +535,8 @@ const NZAPI=(function(){
   if(!S||!S.url)return{ok:false,error:"Node Zero needs the live backend."};
   const ac=typeof AbortController==="function"?new AbortController():null,tm=ac?setTimeout(()=>ac.abort(),20000):0;
   try{
-   const r=await fetch(V.endpoint("illuminati-nodezero"),{method:"POST",...(ac?{signal:ac.signal}:{}),
-    headers:{"Content-Type":"application/json",apikey:S.anonKey,...(String(S.anonKey).startsWith("eyJ")?{Authorization:"Bearer "+S.anonKey}:{})},
+   const u=V.endpoint("illuminati-nodezero"),r=await fetch(u,{method:"POST",...(ac?{signal:ac.signal}:{}),
+    headers:V.hdr(u),
     body:JSON.stringify({action:a,initData:V.tg.initData,data:d})});
    const j=await r.json();
    try{if(j&&j.status==="locked"&&V.onlock)V.onlock(j)}catch(e){}
