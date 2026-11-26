@@ -3,7 +3,7 @@ window.ILLUMINATI={config:{
  initiateFrom:"2026-11-26T00:00:00Z",   /* members who register at/after this moment are Initiates until the founder makes them Founding Members (the server decides; this is only the display fallback) */
  countdown:{start:[2026,10,1,0,0,0],end:[2027,0,1,0,0,0]},
  syncFrom:"2026-11-10T00:00:00Z",   /* members who registered at/after this moment must complete one node sync to decrypt their code. Older members never have to. */
- workerRoutes:["illuminati-gate","illuminati-redcard","illuminati-vote","illuminati-security","illuminati-corrupted","illuminati-broadcast"],   /* edge functions already served by the Worker, e.g. ["illuminati-nodezero"]. Add a name only after that Worker route is deployed. */
+ workerRoutes:["illuminati-gate","illuminati-redcard","illuminati-vote","illuminati-security","illuminati-corrupted","illuminati-broadcast","illuminati-nodezero"],   /* edge functions already served by the Worker, e.g. ["illuminati-nodezero"]. Add a name only after that Worker route is deployed. */
  demoMode:false,        /* true = this device acts as owner (testing). Set false in production */
  supabase:{url:"https://agzhxwditnlzdcuqjjfz.supabase.co",anonKey:"sb_publishable_-B_v-SqjFjh_Q8R29CksBQ_nO4KgmYy",fn:"illuminati-portal",portal:"https://illuminati-portal.vssadam.workers.dev"}  /* fill url + anonKey to switch from local storage to Supabase */
 }};
