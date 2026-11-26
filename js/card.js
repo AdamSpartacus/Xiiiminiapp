@@ -1,7 +1,7 @@
 /* Digital Membership Card: 3D card on the Profile received screen. Reuses the pyramid data loaded above; built lazily when the screen opens. */
 (function(V){
 const PYR=window.ILLUMINATI_MODEL.PYR;
-const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.8d211119.png"};
+const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.c66eb6a3.png"};
 const $=id=>document.getElementById(id);
 let NAME="",CODE="",LOCK=false,inited=false,active=false,tok=0,R=null,draw=()=>{},loop=null;
 /* card art + state live here (outer scope) so V.card.set() can reach them; they used to be declared inside init(), which made set() throw a ReferenceError */
@@ -120,7 +120,7 @@ card.rotation.y=yaw;card.rotation.x=pitch;card.position.y=still?0:Math.sin(t*.9)
 if(lent){const k=Math.round((yaw-side*Math.PI)/(2*Math.PI)),dev=yaw-(side*Math.PI+k*2*Math.PI);
  card.updateMatrixWorld(true);
  const facing=new THREE.Vector3(0,0,1).transformDirection(card.matrixWorld).dot(cam.position.clone().sub(card.position))>0;
- lent.visible=facing&&!RDON;
+ lent.visible=facing;
  if(lent.visible){pyr.rotation.y=PYR_FACE-dev*1.6;pyr.rotation.x=-pitch*.3;
   R.setRenderTarget(RT);R.render(S2,cam2);R.setRenderTarget(null)}}
 if(RDON){const k2=Math.round((yaw-side*Math.PI)/(2*Math.PI)),dv=Math.sin(yaw-(side*Math.PI+k2*2*Math.PI));sheen.forEach(z=>z.material.uniforms.s.value.set(dv+px*.25,pitch-py*.2))}
@@ -138,7 +138,7 @@ draw=function(){if(ready<2||(TIER==="initiate"&&!fiOK)||(RED&&rOK<2&&!rErr))retu
  const RD=RED&&rOK===2&&!rErr;/* red card: own art; if the red art fails to load the card quietly stays black */
  RDON=RD;tone(RD);
  gF.clearRect(0,0,CW,CH);gF.drawImage(RD?iFr:TIER==="initiate"?iFi:iF,0,0,CW,CH);
- if(!RD)text(gF,NAME,960,935,62,16,'#f4f6f9','#a3a9b2',1300);
+ text(gF,NAME,960,935,62,16,'#f4f6f9','#a3a9b2',1300);
  gB.clearRect(0,0,CW,CH);gB.drawImage(RD?iBr:iB,0,0,CW,CH);
  if(!RD){text(gB,LOCK?'VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022':CODE,962,974,94,28,'#f4f6f9',LOCK?'#6d7077':'#9ea4ad',1500);
  text(gB,'ILLUMINATI',960,1127,30,24,'#7c7f86','#62656b',900)}
