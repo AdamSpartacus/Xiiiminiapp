@@ -318,7 +318,7 @@ const MASK="VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u
 const tierOf=m=>{if(m&&(m.tier==="initiate"||m.tier==="founding"))return m.tier;const t=Date.parse(m&&(m.at||m.created_at)||""),f=Date.parse(V.config.initiateFrom||"");return isFinite(t)&&isFinite(f)&&t>=f?"initiate":"founding"};
 V.tierOf=tierOf;
 function paintCode(){const m=MEM;if(!m)return;const lk=V.gate.locked(m);
- V.card&&V.card.set(m.name,lk?"":m.code,lk,tierOf(m));{const ds=$("#ds");if(ds)ds.textContent=tierOf(m)==="initiate"?"Initiate":"Founding Member"}
+ V.card&&V.card.set(m.name,lk?"":m.code,lk,tierOf(m),m.red===true);{const ds=$("#ds");if(ds)ds.textContent=tierOf(m)==="initiate"?"Initiate":"Founding Member"}
  $("#dcode").textContent=lk?MASK:m.code;$("#dcode").dataset.lk=lk?"1":"";$(".codebox").classList.toggle("lk",lk);
  $("#cdec").style.display=lk?"":"none";$("#clockn").style.display=lk?"":"none";
  $("#ccopy").style.display=lk?"none":"";$("#chelp").style.display=lk?"none":""}

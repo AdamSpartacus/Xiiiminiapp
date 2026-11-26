@@ -1,7 +1,7 @@
 /* Digital Membership Card: 3D card on the Profile received screen. Reuses the pyramid data loaded above; built lazily when the screen opens. */
 (function(V){
 const PYR=window.ILLUMINATI_MODEL.PYR;
-const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png"};
+const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.c4b18824.png"};
 const $=id=>document.getElementById(id);
 let NAME="",CODE="",LOCK=false,inited=false,active=false,tok=0,R=null,draw=()=>{},loop=null;
 function init(){
@@ -110,11 +110,12 @@ function text(g,str,cx,base,size,sp,top,bot,maxW){str=String(str||'');if(!str)re
  let tw=w();if(tw>maxW*K){const r=maxW*K/tw;fs*=r;s2*=r;g.font='400 '+fs+'px '+SERIF;tw=w()}
  const gr=g.createLinearGradient(0,base*K-size*.7*K,0,base*K);gr.addColorStop(0,top);gr.addColorStop(1,bot);g.fillStyle=gr;g.textBaseline='alphabetic';
  let x=cx*K-tw/2;for(const ch of str){g.fillText(ch,x,base*K);x+=g.measureText(ch).width+s2}}
-const iF=new Image(),iB=new Image(),iFi=new Image();let ready=0,TIER="founding",fiOK=0;
-draw=function(){if(ready<2||(TIER==="initiate"&&!fiOK))return;
- gF.clearRect(0,0,CW,CH);gF.drawImage(TIER==="initiate"?iFi:iF,0,0,CW,CH);
+const iF=new Image(),iB=new Image(),iFi=new Image(),iFr=new Image(),iBr=new Image();let ready=0,TIER="founding",fiOK=0,RED=false,rOK=0,rErr=0;
+draw=function(){if(ready<2||(TIER==="initiate"&&!fiOK)||(RED&&rOK<2&&!rErr))return;
+ const RD=RED&&rOK===2&&!rErr;/* red card: own art; if the red art fails to load the card quietly stays black */
+ gF.clearRect(0,0,CW,CH);gF.drawImage(RD?iFr:TIER==="initiate"?iFi:iF,0,0,CW,CH);
  text(gF,NAME,960,935,62,16,'#f4f6f9','#a3a9b2',1300);
- gB.clearRect(0,0,CW,CH);gB.drawImage(iB,0,0,CW,CH);
+ gB.clearRect(0,0,CW,CH);gB.drawImage(RD?iBr:iB,0,0,CW,CH);
  text(gB,LOCK?'VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022':CODE,962,974,94,28,'#f4f6f9',LOCK?'#6d7077':'#9ea4ad',1500);
  text(gB,'ILLUMINATI',960,1127,30,24,'#7c7f86','#62656b',900);
  front.userData.t.needsUpdate=true;back.userData.t.needsUpdate=true};
@@ -122,7 +123,7 @@ iF.onload=iB.onload=()=>{ready++;draw();if(ready===2){try{loop(performance.now()
 return true}
 V.card={
  warm(){if(inited)return;const f=()=>{if(!inited)init()};window.requestIdleCallback?requestIdleCallback(f,{timeout:2500}):setTimeout(f,900)},
- set(n,c,lk,t){NAME=String(n||"").toUpperCase().slice(0,40);LOCK=!!lk;CODE=lk?"":String(c||"").toUpperCase();TIER=t==="initiate"?"initiate":"founding";if(TIER==="initiate"&&!iFi.src){iFi.onload=()=>{fiOK=1;draw()};iFi.src=IMG.fi}draw()},
+ set(n,c,lk,t,rd){NAME=String(n||"").toUpperCase().slice(0,40);LOCK=!!lk;CODE=lk?"":String(c||"").toUpperCase();TIER=t==="initiate"?"initiate":"founding";RED=rd===true;if(TIER==="initiate"&&!iFi.src){iFi.onload=()=>{fiOK=1;draw()};iFi.src=IMG.fi}if(RED&&!iFr.src){iFr.onload=iBr.onload=()=>{rOK++;draw()};iFr.onerror=iBr.onerror=()=>{rErr=1;draw()};iFr.src=IMG.fr;iBr.src=IMG.br}draw()},
  view(on){const k=++tok;
   if(on)setTimeout(()=>{if(k!==tok)return;if(!inited&&!init())return;if(!R)return;active=true;R.setAnimationLoop(loop);draw()},300);
   else setTimeout(()=>{if(k!==tok||!R)return;active=false;R.setAnimationLoop(null)},650)}
