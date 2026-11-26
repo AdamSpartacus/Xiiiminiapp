@@ -1,11 +1,11 @@
 /* Digital Membership Card: 3D card on the Profile received screen. Reuses the pyramid data loaded above; built lazily when the screen opens. */
 (function(V){
 const PYR=window.ILLUMINATI_MODEL.PYR;
-const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.c4b18824.png"};
+const IMG={f:"assets/card-front.9cc29972.png",fi:"assets/card-front-initiate.5b1e0a7d.png",b:"assets/card-back.e8cff1dd.png",fr:"assets/card-front-red.95f6e2ae.png",br:"assets/card-back-red.8d211119.png"};
 const $=id=>document.getElementById(id);
 let NAME="",CODE="",LOCK=false,inited=false,active=false,tok=0,R=null,draw=()=>{},loop=null;
 /* card art + state live here (outer scope) so V.card.set() can reach them; they used to be declared inside init(), which made set() throw a ReferenceError */
-const iF=new Image(),iB=new Image(),iFi=new Image(),iFr=new Image(),iBr=new Image();let ready=0,TIER="founding",fiOK=0,RED=false,rOK=0,rErr=0;
+const iF=new Image(),iB=new Image(),iFi=new Image(),iFr=new Image(),iBr=new Image();let ready=0,TIER="founding",fiOK=0,RED=false,rOK=0,rErr=0,RDON=false;
 function init(){
 inited=true;
 const cv=$('cardGl');
@@ -33,8 +33,29 @@ function face(c){const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncodin
 const m=new THREE.MeshPhysicalMaterial({color:0x101114,emissive:0xffffff,emissiveMap:t,emissiveIntensity:.95,map:t,metalness:.2,roughness:.32,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:.55,transparent:true,alphaTest:.02});
 const p=new THREE.Mesh(new THREE.PlaneGeometry(W,H),m);p.userData.t=t;return p}
 const front=face(cF),back=face(cB);
+/* red card: premium chrome red. The art is the colour of a metal surface, so it reflects a red-lit studio:
+   red areas flare red, the silver rim and stripe flare like chrome, and the light moves as the card is dragged. */
+let REDENV=null;function redEnv(){if(REDENV)return REDENV;const w=1024,h=512,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');
+ const sky=g.createLinearGradient(0,0,0,h);[[0,'#1c0306'],[.44,'#080102'],[.5,'#6a0c16'],[.54,'#070102'],[1,'#020001']].forEach(z=>sky.addColorStop(z[0],z[1]));g.fillStyle=sky;g.fillRect(0,0,w,h);
+ const soft=(x,y,bw,bh,col)=>{const gr=g.createRadialGradient(x+bw/2,y+bh/2,0,x+bw/2,y+bh/2,Math.max(bw,bh)/1.4);gr.addColorStop(0,col);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-bw*.2,y-bh*.2,bw*1.4,bh*1.4)};
+ soft(80,90,170,230,'rgba(255,255,255,1)');soft(470,40,90,300,'rgba(255,245,245,.9)');soft(700,110,220,150,'rgba(255,255,255,1)');
+ soft(250,150,200,140,'rgba(255,30,45,1)');soft(860,250,150,170,'rgba(255,20,40,.95)');soft(0,300,1024,60,'rgba(255,40,55,.45)');
+ const t=new THREE.CanvasTexture(c);t.mapping=THREE.EquirectangularReflectionMapping;t.encoding=THREE.sRGBEncoding;
+ REDENV=new THREE.PMREMGenerator(R).fromEquirectangular(t).texture;t.dispose();return REDENV}
+let toned=null;function tone(on){if(toned===on)return;toned=on;[front,back].forEach(p=>{const m=p.material;
+ m.color.setHex(on?0xffffff:0x101114);m.emissiveIntensity=on?.4:.95;m.metalness=on?.88:.2;m.roughness=on?.3:.32;
+ m.clearcoat=1;m.clearcoatRoughness=on?.05:.12;m.envMap=on?redEnv():null;m.envMapIntensity=on?1.7:.55;m.needsUpdate=true});
+ sheen.forEach(z=>z.visible=on)}
 front.position.z=D/2+.0045;back.position.z=-D/2-.0045;back.rotation.y=Math.PI;
 const card=new THREE.Group();card.add(body,front,back);scene.add(card);
+/* moving gloss on the red card: a thin specular streak plus a soft red glow that slide across the face as it tilts (masked to the card shape) */
+const SV='varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+const SF='uniform sampler2D m;uniform vec2 s;uniform float dir;varying vec2 vUv;void main(){float a=texture2D(m,vUv).a;float x=s.x*dir;'+
+ 'float d=(vUv.x*.85+vUv.y*.55)-(.62+x*.75)+s.y*.35;float sp=exp(-d*d/.0035)*.42+exp(-d*d/.045)*.12;'+
+ 'vec2 q=(vUv-vec2(.5-x*.8,.5+s.y*.7))*vec2(1.6,1.);float gl=exp(-dot(q,q)/.1)*.32;'+
+ 'gl_FragColor=vec4((vec3(1.,.9,.9)*sp+vec3(.95,.04,.08)*gl)*a,1.);}';
+const sheen=[[front,1],[back,-1]].map(([f,dir])=>{const m=new THREE.ShaderMaterial({uniforms:{m:{value:f.userData.t},s:{value:new THREE.Vector2()},dir:{value:dir}},vertexShader:SV,fragmentShader:SF,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
+ const p=new THREE.Mesh(new THREE.PlaneGeometry(W,H),m);p.position.z=f.position.z+(dir>0?.0012:-.0012);p.rotation.y=f.rotation.y;p.renderOrder=4;p.visible=false;card.add(p);return p});
 const PYR_FACE=-Math.PI/6;const FRONT_Z=D/2+.0045;
 let lent=null,pyr=null,S2=null,cam2=null,RT=null;
 try{
@@ -99,9 +120,10 @@ card.rotation.y=yaw;card.rotation.x=pitch;card.position.y=still?0:Math.sin(t*.9)
 if(lent){const k=Math.round((yaw-side*Math.PI)/(2*Math.PI)),dev=yaw-(side*Math.PI+k*2*Math.PI);
  card.updateMatrixWorld(true);
  const facing=new THREE.Vector3(0,0,1).transformDirection(card.matrixWorld).dot(cam.position.clone().sub(card.position))>0;
- lent.visible=facing;
- if(facing){pyr.rotation.y=PYR_FACE-dev*1.6;pyr.rotation.x=-pitch*.3;
+ lent.visible=facing&&!RDON;
+ if(lent.visible){pyr.rotation.y=PYR_FACE-dev*1.6;pyr.rotation.x=-pitch*.3;
   R.setRenderTarget(RT);R.render(S2,cam2);R.setRenderTarget(null)}}
+if(RDON){const k2=Math.round((yaw-side*Math.PI)/(2*Math.PI)),dv=Math.sin(yaw-(side*Math.PI+k2*2*Math.PI));sheen.forEach(z=>z.material.uniforms.s.value.set(dv+px*.25,pitch-py*.2))}
 key.position.set(2+px*6,3-py*4,4);
 R.render(scene,cam)};
 /* name and code are drawn onto the card faces */
@@ -114,11 +136,12 @@ function text(g,str,cx,base,size,sp,top,bot,maxW){str=String(str||'');if(!str)re
  let x=cx*K-tw/2;for(const ch of str){g.fillText(ch,x,base*K);x+=g.measureText(ch).width+s2}}
 draw=function(){if(ready<2||(TIER==="initiate"&&!fiOK)||(RED&&rOK<2&&!rErr))return;
  const RD=RED&&rOK===2&&!rErr;/* red card: own art; if the red art fails to load the card quietly stays black */
+ RDON=RD;tone(RD);
  gF.clearRect(0,0,CW,CH);gF.drawImage(RD?iFr:TIER==="initiate"?iFi:iF,0,0,CW,CH);
- text(gF,NAME,960,935,62,16,'#f4f6f9','#a3a9b2',1300);
+ if(!RD)text(gF,NAME,960,935,62,16,'#f4f6f9','#a3a9b2',1300);
  gB.clearRect(0,0,CW,CH);gB.drawImage(RD?iBr:iB,0,0,CW,CH);
- text(gB,LOCK?'VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022':CODE,962,974,94,28,'#f4f6f9',LOCK?'#6d7077':'#9ea4ad',1500);
- text(gB,'ILLUMINATI',960,1127,30,24,'#7c7f86','#62656b',900);
+ if(!RD){text(gB,LOCK?'VC-\u2022\u2022Q\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022':CODE,962,974,94,28,'#f4f6f9',LOCK?'#6d7077':'#9ea4ad',1500);
+ text(gB,'ILLUMINATI',960,1127,30,24,'#7c7f86','#62656b',900)}
  front.userData.t.needsUpdate=true;back.userData.t.needsUpdate=true};
 iF.onload=iB.onload=()=>{ready++;draw();if(ready===2){try{loop(performance.now())}catch(_){}}};iF.src=IMG.f;iB.src=IMG.b;
 return true}
