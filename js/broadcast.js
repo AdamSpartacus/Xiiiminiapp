@@ -192,7 +192,8 @@ function boot(){
    sk.onchange=()=>{drag=false};
    v.onended=()=>{pp.innerHTML=PLAYI};
    v.onerror=()=>{if(Date.now()-loadedAt>0){/* signed link expired or format unsupported: ask for a fresh link once */
-     if(!v._retry){v._retry=1;const t=v.currentTime;api.stream({id:x.id}).then(n=>{if(n&&n.ok&&n.url){v.src=n.url;v.currentTime=t;v.play().catch(()=>{})}else showErr("Could not play this video.")}).catch(()=>showErr("Could not play this video."))}else showErr("Could not play this video.")}};
+     /* renew the signed link whenever it expires (short-lived tokens): at most once every 3 s and 40 times per video, so a real failure still ends in an error */
+     if((v._retry||0)<40&&Date.now()-(v._last||0)>3000){v._retry=(v._retry||0)+1;v._last=Date.now();const t=v.currentTime,was=!v.paused;api.stream({id:x.id}).then(n=>{if(n&&n.ok&&n.url&&/^https:\/\//i.test(n.url)){v.src=n.url;v.currentTime=t;if(was||v._retry===1)v.play().catch(()=>{})}else showErr("Could not play this video.")}).catch(()=>showErr("Could not play this video."))}else showErr("Could not play this video.")}};
    const err=h("div","nb-err");err.hidden=true;stage.appendChild(err);
    const showErr=m=>{err.textContent=m;err.hidden=!m};
    v.addEventListener("playing",()=>showErr(""));
